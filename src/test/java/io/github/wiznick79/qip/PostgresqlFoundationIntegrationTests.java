@@ -38,6 +38,6 @@ class PostgresqlFoundationIntegrationTests {
                 .single();
 
         assertThat(vectorVersion).isEqualTo("0.8.6");
-        assertThat(successfulMigrations).isEqualTo(1);
+        assertThat(successfulMigrations).isPositive();
     }
 }

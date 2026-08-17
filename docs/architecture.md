@@ -23,6 +23,19 @@ The application is standalone. It owns its core domain and data and works with s
 
 This journey is narrow enough to finish but demonstrates domain modeling, persistence, modular design, file processing, retrieval, LLM integration, security boundaries, and testability.
 
+### Intended user experience
+
+The final MVP is a web application, not a collection of endpoints and not a generic chatbot. Its primary screen is an investigation workspace that combines structured incident context with a conversational question panel:
+
+- asset and incident dashboards for finding or opening a case;
+- incident details, observations, evidence, and timeline;
+- a document library with upload and ingestion status;
+- an investigation panel for asking questions in incident context;
+- grounded answers with clickable citations that open the relevant document passage;
+- an explicit action for a user to promote a generated finding into human-confirmed evidence.
+
+The browser calls only QIP's controlled REST API. It never connects directly to PostgreSQL, pgvector, file storage, or a model provider. The backend remains responsible for authorization, validation, retrieval, model context, citation validation, and provenance.
+
 ## 2. MVP scope
 
 ### Included
@@ -38,6 +51,7 @@ This journey is narrow enough to finish but demonstrates domain modeling, persis
 - Failure visibility: distinguish upload, extraction, embedding, retrieval, and model failures.
 - Synthetic demo data and non-proprietary sample documents.
 - Automated unit, module-boundary, persistence, and API integration tests.
+- A web interface covering the primary incident, document, and investigation journey.
 
 ### Explicitly out of scope
 
@@ -50,6 +64,7 @@ This journey is narrow enough to finish but demonstrates domain modeling, persis
 - Multi-tenancy, enterprise identity integration, and fine-grained plant authorization.
 - Autonomous agents, long-running AI plans, or model fine-tuning.
 - Production-scale evaluation and observability stacks.
+- Native mobile applications, micro-frontends, and independently deployed frontend services.
 
 Deferring these is a scope decision, not a permanent rejection. Each appears in the learning roadmap with an adoption trigger.
 
@@ -123,7 +138,7 @@ These are illustrative names, not an instruction to create abstractions before a
 ## 5. Initial architecture
 
 ```text
-Browser / API client
+Web client / API client
         |
         v
 Spring Boot REST application (single deployable)
@@ -145,6 +160,14 @@ Spring Boot REST application (single deployable)
 ```
 
 There is one application process and one PostgreSQL instance. Module boundaries are code boundaries, not network boundaries. Transactions remain local where practical.
+
+### Frontend delivery
+
+Backend vertical slices come first so that the UI consumes stable, tested contracts. Once assets, incidents, and document upload form a meaningful workflow, add a thin TypeScript web client under `frontend/` in the same repository. Select its framework in a short ADR at that point rather than preselecting one before its requirements exist.
+
+Initially the frontend shares the application's release lifecycle. It may be served as static assets by Spring Boot or built as a separate artifact in the same deployment; choose the simpler option during the frontend spike. Independent deployment is justified only if release cadence, caching, team ownership, or hosting requirements later differ.
+
+The first UI increment covers navigation, assets, incidents, document upload, and ingestion status. The grounded question-and-answer milestone then adds the investigation workspace, source panel, and document passage navigation. The conversational panel is part of a structured case, not a site-wide unconstrained chat box.
 
 ### Document ingestion flow
 
@@ -330,16 +353,22 @@ Each numbered item should be a small, independently reviewable change. Do not co
    - Compare Tika/PDFBox on the sample documents and record the choice in an ADR.
    - No embeddings or LLM calls yet.
 
-6. **Knowledge indexing**
+6. **Frontend foundation**
+   - Record the TypeScript framework/build choice in an ADR after a small spike.
+   - Add a thin web client for assets, incidents, document upload, and ingestion status.
+   - Keep it in this repository and release lifecycle; consume only documented REST APIs.
+
+7. **Knowledge indexing**
    - Define passage metadata and chunking policy.
    - Add embedding port with deterministic fake plus Spring AI adapter.
    - Add pgvector migration, batch indexing, idempotent reprocessing, and similarity-search tests.
 
-7. **Grounded question-answering vertical slice**
+8. **Grounded question-answering vertical slice**
    - Implement investigation/question model, retrieval orchestration, bounded prompt construction, answer adapter, citation parsing/validation, and insufficient-evidence behavior.
    - Add fake-model contract tests and a small opt-in live-model smoke test.
+   - Extend the web client with the investigation workspace, grounded-answer statuses, citations, and passage navigation.
 
-8. **Demo and MVP hardening**
+9. **Demo and MVP hardening**
    - Add synthetic seed data, public/sample documents, scripted demo path, OpenAPI docs, upload/security edge-case tests, health endpoints, and architecture diagrams generated from verified modules.
    - Define a small evaluation set before declaring the MVP complete.
 

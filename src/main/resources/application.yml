@@ -7,3 +7,6 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  mvc:
+    problemdetails:
+      enabled: true
