@@ -47,4 +47,16 @@ The `local` profile uses deliberately non-secret development defaults from `appl
 
 Stop the database with `docker compose down`. Its named volume is preserved; add `--volumes` only when you intentionally want to delete local database data.
 
-The repository currently contains the milestone 2 persistence foundation. No domain behavior or AI integration has been implemented yet; see the implementation sequence in the architecture document.
+## Current API
+
+The asset vertical slice provides:
+
+```text
+POST /api/assets
+GET  /api/assets/{assetId}
+GET  /api/assets?page=0&size=20
+```
+
+Asset lists are sorted by name and ID and bounded to 100 records per page. Invalid requests and missing assets return RFC 9457 problem details.
+
+The repository currently contains the milestone 3 asset vertical slice. Incident behavior and AI integration have not been implemented yet; see the implementation sequence in the architecture document.
