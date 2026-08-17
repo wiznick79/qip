@@ -26,4 +26,25 @@ On Windows PowerShell:
 
 Apply the Java formatter with `./mvnw spotless:apply`. The `verify` lifecycle compiles the application, runs tests, verifies Spring Modulith boundaries, checks formatting, and runs the static-analysis baseline.
 
-The repository currently contains the milestone 1 application skeleton. No domain behavior, persistence, AI integration, or external infrastructure has been implemented yet; see the implementation sequence in the architecture document.
+The integration test suite uses Testcontainers and therefore requires a running Docker engine.
+
+## Local database
+
+The local dependency is PostgreSQL 17 with pgvector 0.8.6. Start it with:
+
+```shell
+docker compose up -d --wait
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+On Windows PowerShell, run the application with:
+
+```powershell
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+The `local` profile uses deliberately non-secret development defaults from `application-local.yml`. Copy `.env.example` to `.env` only when you need to override them. Other environments should provide standard Spring datasource configuration through secret management rather than activate the `local` profile.
+
+Stop the database with `docker compose down`. Its named volume is preserved; add `--volumes` only when you intentionally want to delete local database data.
+
+The repository currently contains the milestone 2 persistence foundation. No domain behavior or AI integration has been implemented yet; see the implementation sequence in the architecture document.

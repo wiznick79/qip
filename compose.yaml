@@ -1,0 +1,22 @@
+name: qip
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
+    environment:
+      POSTGRES_DB: ${QIP_DB_NAME:-qip}
+      POSTGRES_USER: ${QIP_DB_USERNAME:-qip}
+      POSTGRES_PASSWORD: ${QIP_DB_PASSWORD:-qip-local-only}
+    ports:
+      - "${QIP_DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - qip-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  qip-postgres-data:

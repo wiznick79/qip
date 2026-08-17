@@ -188,8 +188,8 @@ The bootstrap pins Spring Boot 4.1.0 and Spring Modulith 2.1.0, compatible stabl
 | Spring Boot | Web, configuration, validation, persistence, and production conventions. |
 | Spring Modulith | Verifies module boundaries and supports an explainable path from modules to services. |
 | Maven Wrapper | Reproducible local and CI builds without requiring a global Maven version. |
-| PostgreSQL | Durable relational store for the owned domain. |
-| pgvector | Semantic retrieval without operating a separate database. |
+| PostgreSQL 17 | Durable relational store for the owned domain. |
+| pgvector 0.8.6 | Semantic retrieval without operating a separate database. The versioned PostgreSQL 17 image is shared by Compose and integration tests. |
 | Flyway | Reviewable, repeatable database schema evolution. |
 | Spring Data JPA | Straightforward transactional domain persistence; vector queries may use JDBC/native SQL behind the knowledge repository. |
 | Spring AI | Consistent Java/Spring adapters for embedding and chat models while application ports remain provider-neutral. |
