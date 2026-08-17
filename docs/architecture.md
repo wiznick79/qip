@@ -175,6 +175,12 @@ Incidents begin in `REPORTED` state. The normal lifecycle is `REPORTED` to `INVE
 
 Incident search accepts optional asset, status, and occurred-at bounds. `from` is inclusive and `to` is exclusive, which makes adjacent time windows unambiguous. Results are ordered by occurred-at time descending and then opaque incident ID ascending, with bounded pagination.
 
+### Incident observations
+
+An observation is a human-authored, append-only statement attached to one incident. It records the supplied observation time, an explicit author reference, and the application recording time. Until authentication is introduced, the author reference is a caller-supplied provenance label rather than a verified identity. The API offers append and paginated timeline retrieval, but no update or delete operation. A correction is therefore another attributable observation rather than a silent rewrite of investigation history.
+
+Observation time cannot be later than the application recording time. Timeline retrieval is ordered by observation time and then opaque observation ID, both ascending, so pagination remains deterministic.
+
 ### Document ingestion flow
 
 1. The API validates size and allowed media type, calculates a checksum, stores the file, and creates a `SourceDocument` in `UPLOADED` state.
@@ -305,6 +311,7 @@ GET    /api/incidents/{incidentId}
 GET    /api/incidents?assetId=&status=&from=&to=
 PATCH  /api/incidents/{incidentId}/status
 POST   /api/incidents/{incidentId}/observations
+GET    /api/incidents/{incidentId}/observations
 POST   /api/incidents/{incidentId}/evidence
 
 POST   /api/documents                 multipart upload
