@@ -4,6 +4,7 @@ import io.github.wiznick79.qip.assets.api.AssetNotFoundException;
 import io.github.wiznick79.qip.incidents.api.IncidentNotFoundException;
 import io.github.wiznick79.qip.incidents.api.InvalidIncidentTransitionException;
 import io.github.wiznick79.qip.incidents.internal.application.InvalidIncidentSearchRangeException;
+import io.github.wiznick79.qip.incidents.internal.domain.InvalidEvidenceTimeException;
 import io.github.wiznick79.qip.incidents.internal.domain.InvalidObservationTimeException;
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -69,6 +70,17 @@ class IncidentProblemHandler {
         problem.setType(URI.create("https://github.com/wiznick79/qip/problems/invalid-observation-time"));
         problem.setTitle("Invalid observation time");
         problem.setProperty("observedAt", exception.observedAt());
+        problem.setProperty("recordedAt", exception.recordedAt());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidEvidenceTimeException.class)
+    ProblemDetail invalidEvidenceTime(InvalidEvidenceTimeException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "The evidence event time must not be later than its recording time.");
+        problem.setType(URI.create("https://github.com/wiznick79/qip/problems/invalid-evidence-time"));
+        problem.setTitle("Invalid evidence time");
+        problem.setProperty("eventAt", exception.eventAt());
         problem.setProperty("recordedAt", exception.recordedAt());
         return problem;
     }
