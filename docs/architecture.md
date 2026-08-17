@@ -169,6 +169,12 @@ Initially the frontend shares the application's release lifecycle. It may be ser
 
 The first UI increment covers navigation, assets, incidents, document upload, and ingestion status. The grounded question-and-answer milestone then adds the investigation workspace, source panel, and document passage navigation. The conversational panel is part of a structured case, not a site-wide unconstrained chat box.
 
+### Incident lifecycle and search
+
+Incidents begin in `REPORTED` state. The normal lifecycle is `REPORTED` to `INVESTIGATING` to `RESOLVED` to `CLOSED`; a resolved incident may return to `INVESTIGATING` when new information requires the case to be reopened. Repeating the current status is idempotent, while a closed incident is terminal. These rules belong to the incident domain rather than the controller or persistence adapter.
+
+Incident search accepts optional asset, status, and occurred-at bounds. `from` is inclusive and `to` is exclusive, which makes adjacent time windows unambiguous. Results are ordered by occurred-at time descending and then opaque incident ID ascending, with bounded pagination.
+
 ### Document ingestion flow
 
 1. The API validates size and allowed media type, calculates a checksum, stores the file, and creates a `SourceDocument` in `UPLOADED` state.
@@ -297,6 +303,7 @@ GET    /api/assets
 POST   /api/incidents
 GET    /api/incidents/{incidentId}
 GET    /api/incidents?assetId=&status=&from=&to=
+PATCH  /api/incidents/{incidentId}/status
 POST   /api/incidents/{incidentId}/observations
 POST   /api/incidents/{incidentId}/evidence
 

@@ -59,4 +59,15 @@ GET  /api/assets?page=0&size=20
 
 Asset lists are sorted by name and ID and bounded to 100 records per page. Invalid requests and missing assets return RFC 9457 problem details.
 
-The repository currently contains the milestone 3 asset vertical slice. Incident behavior and AI integration have not been implemented yet; see the implementation sequence in the architecture document.
+The incident lifecycle slice additionally provides:
+
+```text
+POST  /api/incidents
+GET   /api/incidents/{incidentId}
+GET   /api/incidents?assetId=&status=&from=&to=&page=0&size=20
+PATCH /api/incidents/{incidentId}/status
+```
+
+Incident search is ordered newest first and supports bounded pagination. Incidents follow the documented `REPORTED` → `INVESTIGATING` → `RESOLVED` → `CLOSED` lifecycle, with reopening from `RESOLVED` to `INVESTIGATING`.
+
+The repository currently contains the first independently reviewable part of milestone 4. Observations and evidence are intentionally separate follow-up changes; AI integration has not been implemented yet.
