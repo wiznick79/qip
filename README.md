@@ -66,8 +66,12 @@ POST  /api/incidents
 GET   /api/incidents/{incidentId}
 GET   /api/incidents?assetId=&status=&from=&to=&page=0&size=20
 PATCH /api/incidents/{incidentId}/status
+POST  /api/incidents/{incidentId}/observations
+GET   /api/incidents/{incidentId}/observations?page=0&size=20
 ```
 
 Incident search is ordered newest first and supports bounded pagination. Incidents follow the documented `REPORTED` → `INVESTIGATING` → `RESOLVED` → `CLOSED` lifecycle, with reopening from `RESOLVED` to `INVESTIGATING`.
 
-The repository currently contains the first independently reviewable part of milestone 4. Observations and evidence are intentionally separate follow-up changes; AI integration has not been implemented yet.
+Observations are append-only, explicitly attributed, and returned in deterministic timeline order. Silent update and delete operations are deliberately absent.
+
+The repository currently contains the incident lifecycle and observation increments of milestone 4. Evidence is the remaining separate follow-up change; AI integration has not been implemented yet.

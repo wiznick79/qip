@@ -4,6 +4,7 @@ import io.github.wiznick79.qip.assets.api.AssetNotFoundException;
 import io.github.wiznick79.qip.incidents.api.IncidentNotFoundException;
 import io.github.wiznick79.qip.incidents.api.InvalidIncidentTransitionException;
 import io.github.wiznick79.qip.incidents.internal.application.InvalidIncidentSearchRangeException;
+import io.github.wiznick79.qip.incidents.internal.domain.InvalidObservationTimeException;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -58,6 +59,17 @@ class IncidentProblemHandler {
         problem.setTitle("Invalid incident search range");
         problem.setProperty("from", exception.from());
         problem.setProperty("to", exception.to());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidObservationTimeException.class)
+    ProblemDetail invalidObservationTime(InvalidObservationTimeException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "The observation time must not be later than its recording time.");
+        problem.setType(URI.create("https://github.com/wiznick79/qip/problems/invalid-observation-time"));
+        problem.setTitle("Invalid observation time");
+        problem.setProperty("observedAt", exception.observedAt());
+        problem.setProperty("recordedAt", exception.recordedAt());
         return problem;
     }
 
