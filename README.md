@@ -11,6 +11,7 @@ Start with:
 - [ADR 0001: modular monolith and single Maven module](docs/adr/0001-modular-monolith-and-single-maven-module.md)
 - [ADR 0002: bounded PDF extraction with PDFBox](docs/adr/0002-use-pdfbox-for-bounded-pdf-extraction.md)
 - [ADR 0003: React and Vite web client](docs/adr/0003-use-react-and-vite-for-the-web-client.md)
+- [ADR 0004: pgvector and embedding ports](docs/adr/0004-use-pgvector-with-application-owned-embedding-ports.md)
 
 ## Development
 
@@ -87,9 +88,12 @@ POST /api/documents                         multipart fields: title, file
 GET  /api/documents/{documentId}
 GET  /api/documents/{documentId}/status
 POST /api/documents/{documentId}/extraction retry failed extraction
+POST /api/documents/{documentId}/indexing   retry failed indexing
 ```
 
-Uploads are limited to 10 MiB and to `application/pdf` or UTF-8 `text/plain`. QIP stores files outside the web root under generated keys, computes a SHA-256 checksum, returns the existing document for duplicate content, and extracts text synchronously without holding a database transaction open during file processing. PDF page numbers are retained for later citations. Malformed, encrypted, scanned-only, or extraction-limit-breaking PDFs remain visible as `EXTRACTION_FAILED` and may be retried.
+Uploads are limited to 10 MiB and to `application/pdf` or UTF-8 `text/plain`. QIP stores files outside the web root under generated keys, computes a SHA-256 checksum, returns the existing document for duplicate content, and extracts and indexes text synchronously without holding a database transaction open during file processing or embedding. PDF page numbers are retained for later citations. Malformed, encrypted, scanned-only, or extraction-limit-breaking PDFs remain visible as `EXTRACTION_FAILED`; embedding failures remain visible as `INDEXING_FAILED`. Both may be retried.
+
+Extracted pages are split into bounded, overlapping passages and stored with pgvector embeddings. The default `deterministic-hash-v1` adapter is offline and credential-free for development and tests. It offers reproducible lexical similarity, not production semantic quality. A Spring AI 2.0 adapter is available under the `spring-ai` profile, but a provider implementation and `EmbeddingModel` configuration must be added deliberately before activating it.
 
 The storage directory defaults to `./data/documents` and can be overridden with `QIP_DOCUMENT_STORAGE_DIRECTORY`. Uploaded content and extracted text are intentionally ignored by Git.
 
@@ -113,7 +117,7 @@ Vite serves the development UI at `http://localhost:5173` and proxies `/api` to 
 
 The first UI increment covers asset registration, incident reporting/filtering, document upload, and ingestion status. It deliberately has no generic chat panel; the structured investigation workspace arrives with grounded question answering.
 
-The repository currently contains the milestone 6 frontend foundation. Embeddings and LLM integration have not been implemented yet.
+The repository currently contains the milestone 7 knowledge-indexing slice. Grounded answer generation and the investigation workspace are the next milestone; no chat model is configured yet.
 
 ## Synthetic demo data
 

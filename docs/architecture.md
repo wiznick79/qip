@@ -197,7 +197,9 @@ Evidence is append-only in this increment and is returned through a bounded time
 
 This may initially run after the upload request using an in-process task executor, with status polling. The persisted ingestion state and an idempotent retry operation must allow interrupted jobs to be recovered after a process restart. It must not hold a database transaction open during file extraction or remote model calls. Kafka is unnecessary at MVP volume; durable messaging becomes useful only when ingestion needs independent scaling, replay, or stronger failure isolation.
 
-The milestone 5 implementation performs extraction synchronously after upload while preserving the same persisted state transitions: `UPLOADED` → `EXTRACTING` → `EXTRACTED` or `EXTRACTION_FAILED`. Repository operations use short transactions; local storage reads and PDF processing occur between them. A retry endpoint resumes failed extraction, and asking to extract an already extracted document is idempotent.
+The milestone 7 implementation performs extraction and indexing synchronously after upload while preserving persisted state transitions: `UPLOADED` → `EXTRACTING` → `EXTRACTED` → `INDEXING` → `INDEXED`, with `EXTRACTION_FAILED` and `INDEXING_FAILED` as retryable failure states. Repository operations use short transactions; local storage reads, PDF processing, and embedding calls occur between them. Retry endpoints resume failed extraction or indexing, and re-uploading duplicate content resumes incomplete ingestion.
+
+Passages never cross page boundaries. Text is whitespace-normalized and split into at most 800 characters with 120 characters of word-aligned overlap. Page number, document-wide sequence, text digest, embedding model, vector dimensions, and indexing time are retained. All embeddings are produced and validated before a single transaction replaces that document's passages, preventing partial batches or stale vectors from becoming searchable. Retrieval uses bounded exact cosine search over `INDEXED` documents with matching model and dimensions; optional document filters constrain the candidate set. ADR 0004 records why approximate indexes and a fixed vector dimension are deferred.
 
 File identity is the SHA-256 checksum of its bytes. Re-uploading identical content returns the original document, including its original title, rather than creating another metadata record or stored file. The original filename is untrusted display metadata: path components are removed and the local storage key is generated from the opaque document ID. Storage defaults outside the web root and is configurable for deployment.
 
@@ -225,7 +227,7 @@ Only PDF and strict UTF-8 plain text are accepted. Direct PDFBox extraction reta
 
 ## 6. Technology decisions
 
-The bootstrap pins Spring Boot 4.1.0 and Spring Modulith 2.1.0, compatible stable release lines selected on 2026-08-17. Spring AI will be selected separately when knowledge indexing begins so it is not introduced before it is used.
+The bootstrap pins Spring Boot 4.1.0, Spring Modulith 2.1.0, and Spring AI 2.0.0, compatible stable release lines selected in August 2026. Only Spring AI's provider-neutral model API is included; provider starters remain an explicit deployment choice.
 
 ### MVP technologies
 
@@ -330,6 +332,8 @@ GET    /api/incidents/{incidentId}/evidence
 POST   /api/documents                 multipart upload
 GET    /api/documents/{documentId}
 GET    /api/documents/{documentId}/status
+POST   /api/documents/{documentId}/extraction
+POST   /api/documents/{documentId}/indexing
 GET    /api/documents?page=&size=
 
 POST   /api/incidents/{incidentId}/investigations

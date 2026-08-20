@@ -64,4 +64,9 @@ class DocumentController {
     DocumentStatusResponse retryExtraction(@PathVariable UUID documentId) {
         return DocumentStatusResponse.from(documents.retryExtraction(documentId));
     }
+
+    @PostMapping("/{documentId}/indexing")
+    DocumentStatusResponse retryIndexing(@PathVariable UUID documentId) {
+        return DocumentStatusResponse.from(documents.retryIndexing(documentId));
+    }
 }

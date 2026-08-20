@@ -4,5 +4,8 @@ public enum DocumentStatus {
     UPLOADED,
     EXTRACTING,
     EXTRACTED,
-    EXTRACTION_FAILED
+    EXTRACTION_FAILED,
+    INDEXING,
+    INDEXED,
+    INDEXING_FAILED
 }

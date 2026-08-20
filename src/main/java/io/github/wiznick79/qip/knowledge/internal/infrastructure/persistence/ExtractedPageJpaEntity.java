@@ -31,4 +31,8 @@ class ExtractedPageJpaEntity {
         pageNumber = page.pageNumber();
         text = page.text();
     }
+
+    ExtractedPage toApplication() {
+        return new ExtractedPage(pageNumber, text);
+    }
 }

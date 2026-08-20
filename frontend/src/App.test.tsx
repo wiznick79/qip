@@ -17,7 +17,7 @@ describe("QIP workspace", () => {
       if (url.startsWith("/api/documents")) {
         return jsonResponse({ items: [{
           id: "document-1", title: "Synthetic guide", originalFilename: "guide.txt", mediaType: "text/plain",
-          sizeBytes: 120, checksumSha256: "a".repeat(64), status: "EXTRACTED", failureReason: null,
+          sizeBytes: 120, checksumSha256: "a".repeat(64), status: "INDEXED", failureReason: null,
           extractedPageCount: 1, uploadedAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:01Z",
         }], page: 0, size: 100, totalElements: 1 });
       }
@@ -36,7 +36,7 @@ describe("QIP workspace", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /documents/i }));
     expect(await screen.findByText("Synthetic guide")).toBeInTheDocument();
-    expect(screen.getByText("EXTRACTED")).toBeInTheDocument();
+    expect(screen.getByText("INDEXED")).toBeInTheDocument();
   });
 
   it("states the human confirmation boundary", () => {

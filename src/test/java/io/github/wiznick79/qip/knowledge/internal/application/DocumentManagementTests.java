@@ -27,6 +27,7 @@ class DocumentManagementTests {
     private InMemoryRepository repository;
     private InMemoryStorage storage;
     private ConfigurableExtractor extractor;
+    private ConfigurableIndexer indexer;
     private DocumentManagement documents;
 
     @BeforeEach
@@ -34,8 +35,9 @@ class DocumentManagementTests {
         repository = new InMemoryRepository();
         storage = new InMemoryStorage();
         extractor = new ConfigurableExtractor();
+        indexer = new ConfigurableIndexer();
         documents = new DocumentManagement(
-                repository, storage, extractor, () -> DOCUMENT_ID, Clock.fixed(NOW, ZoneOffset.UTC), 1_000);
+                repository, storage, extractor, indexer, () -> DOCUMENT_ID, Clock.fixed(NOW, ZoneOffset.UTC), 1_000);
     }
 
     @Test
@@ -43,12 +45,17 @@ class DocumentManagementTests {
         var result = documents.upload(command("C:\\fakepath\\guide.txt", "Synthetic guidance"));
 
         assertThat(result.created()).isTrue();
-        assertThat(result.document().status()).isEqualTo(DocumentStatus.EXTRACTED);
+        assertThat(result.document().status()).isEqualTo(DocumentStatus.INDEXED);
         assertThat(result.document().originalFilename()).isEqualTo("guide.txt");
         assertThat(result.document().extractedPageCount()).isEqualTo(1);
         assertThat(storage.keys()).containsExactly(DOCUMENT_ID + ".bin");
         assertThat(repository.savedStatuses)
-                .containsExactly(DocumentStatus.UPLOADED, DocumentStatus.EXTRACTING, DocumentStatus.EXTRACTED);
+                .containsExactly(
+                        DocumentStatus.UPLOADED,
+                        DocumentStatus.EXTRACTING,
+                        DocumentStatus.EXTRACTED,
+                        DocumentStatus.INDEXING,
+                        DocumentStatus.INDEXED);
     }
 
     @Test
@@ -60,6 +67,7 @@ class DocumentManagementTests {
         assertThat(second.document().id()).isEqualTo(first.document().id());
         assertThat(storage.storeCalls).isEqualTo(1);
         assertThat(extractor.calls).isEqualTo(1);
+        assertThat(indexer.calls).isEqualTo(1);
     }
 
     @Test
@@ -72,7 +80,22 @@ class DocumentManagementTests {
 
         assertThat(failed.document().status()).isEqualTo(DocumentStatus.EXTRACTION_FAILED);
         assertThat(failed.document().failureReason()).isEqualTo("Synthetic parse failure");
-        assertThat(retried.status()).isEqualTo(DocumentStatus.EXTRACTED);
+        assertThat(retried.status()).isEqualTo(DocumentStatus.INDEXED);
+    }
+
+    @Test
+    void recordsAControlledIndexingFailureAndRetriesWithoutExtractingAgain() {
+        indexer.failure = new DocumentIndexingException("Synthetic embedding failure");
+        var failed = documents.upload(command("guide.txt", "content"));
+        indexer.failure = null;
+
+        var retried = documents.retryIndexing(failed.document().id());
+
+        assertThat(failed.document().status()).isEqualTo(DocumentStatus.INDEXING_FAILED);
+        assertThat(failed.document().failureReason()).isEqualTo("Synthetic embedding failure");
+        assertThat(retried.status()).isEqualTo(DocumentStatus.INDEXED);
+        assertThat(extractor.calls).isEqualTo(1);
+        assertThat(indexer.calls).isEqualTo(2);
     }
 
     @Test
@@ -151,6 +174,11 @@ class DocumentManagementTests {
         public int extractedPageCount(UUID documentId) {
             return pages.getOrDefault(documentId, List.of()).size();
         }
+
+        @Override
+        public List<ExtractedPage> findExtractedPages(UUID documentId) {
+            return pages.getOrDefault(documentId, List.of());
+        }
     }
 
     private static final class InMemoryStorage implements DocumentStorage {
@@ -191,6 +219,19 @@ class DocumentManagementTests {
                 throw failure;
             }
             return List.of(new ExtractedPage(1, new String(content, StandardCharsets.UTF_8)));
+        }
+    }
+
+    private static final class ConfigurableIndexer implements DocumentIndexer {
+        private RuntimeException failure;
+        private int calls;
+
+        @Override
+        public void index(UUID documentId, List<ExtractedPage> pages) {
+            calls++;
+            if (failure != null) {
+                throw failure;
+            }
         }
     }
 }

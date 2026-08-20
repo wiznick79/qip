@@ -38,6 +38,22 @@ class SourceDocumentTests {
     }
 
     @Test
+    void followsTheIndexingStateMachineAndPermitsRetry() {
+        var extracted = uploadedDocument()
+                .startExtraction(UPLOADED_AT.plusSeconds(1))
+                .completeExtraction(UPLOADED_AT.plusSeconds(2));
+
+        var failed = extracted
+                .startIndexing(UPLOADED_AT.plusSeconds(3))
+                .failIndexing("Embedding unavailable", UPLOADED_AT.plusSeconds(4));
+        var indexed = failed.startIndexing(UPLOADED_AT.plusSeconds(5)).completeIndexing(UPLOADED_AT.plusSeconds(6));
+
+        assertThat(failed.status()).isEqualTo(DocumentStatus.INDEXING_FAILED);
+        assertThat(indexed.status()).isEqualTo(DocumentStatus.INDEXED);
+        assertThat(indexed.failureReason()).isNull();
+    }
+
+    @Test
     void rejectsCompletingAQueuedDocument() {
         assertThatThrownBy(() -> uploadedDocument().completeExtraction(UPLOADED_AT.plusSeconds(1)))
                 .isInstanceOf(InvalidDocumentStateException.class);

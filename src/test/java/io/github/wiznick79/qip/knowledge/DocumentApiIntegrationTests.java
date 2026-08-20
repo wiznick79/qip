@@ -9,7 +9,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import io.github.wiznick79.qip.knowledge.api.KnowledgeQuery;
+import io.github.wiznick79.qip.knowledge.api.KnowledgeSearch;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +49,9 @@ class DocumentApiIntegrationTests {
     @Autowired
     private JdbcClient jdbcClient;
 
+    @Autowired
+    private KnowledgeSearch knowledgeSearch;
+
     @BeforeEach
     void clearDocuments() {
         jdbcClient.sql("DELETE FROM extracted_document_pages").update();
@@ -63,13 +70,13 @@ class DocumentApiIntegrationTests {
                 .andExpect(jsonPath("$.title").value("Synthetic bearing guide"))
                 .andExpect(jsonPath("$.originalFilename").value("synthetic-guide.txt"))
                 .andExpect(jsonPath("$.mediaType").value("text/plain"))
-                .andExpect(jsonPath("$.status").value("EXTRACTED"))
+                .andExpect(jsonPath("$.status").value("INDEXED"))
                 .andExpect(jsonPath("$.failureReason").doesNotExist())
                 .andExpect(jsonPath("$.extractedPageCount").value(1));
 
         mockMvc.perform(get("/api/documents/{documentId}/status", documentId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("EXTRACTED"))
+                .andExpect(jsonPath("$.status").value("INDEXED"))
                 .andExpect(jsonPath("$.extractedPageCount").value(1));
 
         String extracted = jdbcClient
@@ -104,6 +111,59 @@ class DocumentApiIntegrationTests {
     }
 
     @Test
+    void duplicateUploadResumesAnExtractedDocumentFromAnEarlierApplicationVersion() throws Exception {
+        String first = upload("legacy.txt", "text/plain", "Legacy extracted synthetic content", true);
+        UUID documentId = UUID.fromString(JsonPath.read(first, "$.id"));
+        jdbcClient
+                .sql("DELETE FROM knowledge_passages WHERE document_id = :id")
+                .param("id", documentId)
+                .update();
+        jdbcClient
+                .sql("UPDATE source_documents SET ingestion_status = 'EXTRACTED' WHERE id = :id")
+                .param("id", documentId)
+                .update();
+
+        mockMvc.perform(multipart("/api/documents")
+                        .file(title("Legacy duplicate"))
+                        .file(file("duplicate.txt", "text/plain", "Legacy extracted synthetic content")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(documentId.toString()))
+                .andExpect(jsonPath("$.status").value("INDEXED"));
+
+        Integer count = jdbcClient
+                .sql("SELECT count(*) FROM knowledge_passages WHERE document_id = :id")
+                .param("id", documentId)
+                .query(Integer.class)
+                .single();
+        org.assertj.core.api.Assertions.assertThat(count).isOne();
+    }
+
+    @Test
+    void indexesExtractedPassagesAndSearchesWithDocumentFilters() throws Exception {
+        String pumpResponse =
+                upload("pump.txt", "text/plain", "Hydraulic pump seal inspection for a synthetic oil leak", true);
+        String conveyorResponse =
+                upload("conveyor.txt", "text/plain", "Packaging conveyor belt alignment procedure", true);
+        UUID pumpId = UUID.fromString(JsonPath.read(pumpResponse, "$.id"));
+        UUID conveyorId = UUID.fromString(JsonPath.read(conveyorResponse, "$.id"));
+
+        var allResults = knowledgeSearch.search(new KnowledgeQuery("hydraulic pump leak", Set.of(), 5));
+        var filteredResults = knowledgeSearch.search(new KnowledgeQuery("hydraulic pump leak", Set.of(conveyorId), 5));
+
+        org.assertj.core.api.Assertions.assertThat(allResults).isNotEmpty();
+        org.assertj.core.api.Assertions.assertThat(allResults.getFirst().documentId())
+                .isEqualTo(pumpId);
+        org.assertj.core.api.Assertions.assertThat(filteredResults)
+                .extracting(io.github.wiznick79.qip.knowledge.api.RetrievedPassage::documentId)
+                .containsOnly(conveyorId);
+        Integer passageCount = jdbcClient
+                .sql("SELECT count(*) FROM knowledge_passages")
+                .query(Integer.class)
+                .single();
+        org.assertj.core.api.Assertions.assertThat(passageCount).isEqualTo(2);
+    }
+
+    @Test
     void listsDocumentsWithBoundedMetadata() throws Exception {
         upload("first.txt", "text/plain", "First synthetic document", true);
         upload("second.txt", "text/plain", "Second synthetic document", true);
@@ -111,7 +171,7 @@ class DocumentApiIntegrationTests {
         mockMvc.perform(get("/api/documents").queryParam("page", "0").queryParam("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].status").value("EXTRACTED"))
+                .andExpect(jsonPath("$.items[0].status").value("INDEXED"))
                 .andExpect(jsonPath("$.items[0].extractedPageCount").value(1))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(1))

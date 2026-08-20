@@ -82,4 +82,12 @@ class JpaDocumentRepositoryAdapter implements DocumentRepository {
     public int extractedPageCount(UUID documentId) {
         return Math.toIntExact(pages.countByDocumentId(documentId));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ExtractedPage> findExtractedPages(UUID documentId) {
+        return pages.findByDocumentIdOrderByPageNumberAsc(documentId).stream()
+                .map(ExtractedPageJpaEntity::toApplication)
+                .toList();
+    }
 }

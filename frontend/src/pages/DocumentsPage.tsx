@@ -19,7 +19,12 @@ export function DocumentsPage() {
 
   useEffect(() => void load(), [load]);
   useEffect(() => {
-    if (!documents.some((document) => document.status === "UPLOADED" || document.status === "EXTRACTING")) return;
+    if (!documents.some((document) =>
+      document.status === "UPLOADED"
+      || document.status === "EXTRACTING"
+      || document.status === "EXTRACTED"
+      || document.status === "INDEXING"
+    )) return;
     const timer = window.setInterval(() => void load(), 2_000);
     return () => window.clearInterval(timer);
   }, [documents, load]);

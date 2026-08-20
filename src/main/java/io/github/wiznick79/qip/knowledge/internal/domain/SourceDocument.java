@@ -38,10 +38,10 @@ public record SourceDocument(
         if (updatedAt.isBefore(uploadedAt)) {
             throw new IllegalArgumentException("updatedAt must not precede uploadedAt");
         }
-        if (status == DocumentStatus.EXTRACTION_FAILED) {
+        if (status == DocumentStatus.EXTRACTION_FAILED || status == DocumentStatus.INDEXING_FAILED) {
             failureReason = requiredText(failureReason, "failureReason", 500);
         } else if (failureReason != null) {
-            throw new IllegalArgumentException("failureReason is only valid for failed extraction");
+            throw new IllegalArgumentException("failureReason is only valid for failed ingestion");
         }
     }
 
@@ -65,8 +65,34 @@ public record SourceDocument(
         return withState(DocumentStatus.EXTRACTION_FAILED, reason, now);
     }
 
+    public SourceDocument startIndexing(Instant now) {
+        if (status == DocumentStatus.INDEXED) {
+            return this;
+        }
+        if (status != DocumentStatus.EXTRACTED && status != DocumentStatus.INDEXING_FAILED) {
+            throw new InvalidDocumentStateException(status);
+        }
+        return withState(DocumentStatus.INDEXING, null, now);
+    }
+
+    public SourceDocument completeIndexing(Instant now) {
+        requireIndexing();
+        return withState(DocumentStatus.INDEXED, null, now);
+    }
+
+    public SourceDocument failIndexing(String reason, Instant now) {
+        requireIndexing();
+        return withState(DocumentStatus.INDEXING_FAILED, reason, now);
+    }
+
     private void requireExtracting() {
         if (status != DocumentStatus.EXTRACTING) {
+            throw new InvalidDocumentStateException(status);
+        }
+    }
+
+    private void requireIndexing() {
+        if (status != DocumentStatus.INDEXING) {
             throw new InvalidDocumentStateException(status);
         }
     }

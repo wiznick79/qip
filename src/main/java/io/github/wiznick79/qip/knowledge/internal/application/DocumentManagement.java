@@ -26,6 +26,7 @@ public class DocumentManagement {
     private final DocumentRepository repository;
     private final DocumentStorage storage;
     private final TextExtractor extractor;
+    private final DocumentIndexer indexer;
     private final DocumentIdGenerator idGenerator;
     private final Clock clock;
     private final long maxUploadBytes;
@@ -34,12 +35,14 @@ public class DocumentManagement {
             DocumentRepository repository,
             DocumentStorage storage,
             TextExtractor extractor,
+            DocumentIndexer indexer,
             DocumentIdGenerator idGenerator,
             Clock clock,
             @Value("${qip.documents.max-upload-bytes}") long maxUploadBytes) {
         this.repository = repository;
         this.storage = storage;
         this.extractor = extractor;
+        this.indexer = indexer;
         this.idGenerator = idGenerator;
         this.clock = clock;
         this.maxUploadBytes = maxUploadBytes;
@@ -50,7 +53,7 @@ public class DocumentManagement {
         String checksum = sha256(upload.content());
         var duplicate = repository.findByChecksum(checksum);
         if (duplicate.isPresent()) {
-            return new UploadDocumentResult(snapshot(duplicate.orElseThrow()), false);
+            return new UploadDocumentResult(resumeIngestion(duplicate.orElseThrow()), false);
         }
 
         UUID documentId = idGenerator.nextId();
@@ -81,7 +84,13 @@ public class DocumentManagement {
     public DocumentSnapshot retryExtraction(UUID documentId) {
         SourceDocument document =
                 repository.findById(documentId).orElseThrow(() -> new DocumentNotFoundException(documentId));
-        return extract(document);
+        return resumeIngestion(document);
+    }
+
+    public DocumentSnapshot retryIndexing(UUID documentId) {
+        SourceDocument document =
+                repository.findById(documentId).orElseThrow(() -> new DocumentNotFoundException(documentId));
+        return index(document);
     }
 
     public DocumentSnapshot getDocument(UUID documentId) {
@@ -96,28 +105,51 @@ public class DocumentManagement {
     }
 
     private DocumentSnapshot extract(SourceDocument document) {
-        if (document.status() == DocumentStatus.EXTRACTED) {
-            return snapshot(document);
-        }
         SourceDocument extracting = repository.save(document.startExtraction(Instant.now(clock)));
+        SourceDocument extracted;
         try {
             List<ExtractedPage> pages =
                     extractor.extract(storage.read(extracting.storageKey()), extracting.mediaType());
             if (pages.isEmpty()) {
                 throw new DocumentExtractionException("Document contains no extractable text");
             }
-            SourceDocument extracted = extracting.completeExtraction(Instant.now(clock));
-            return snapshot(repository.saveExtraction(extracted, pages));
+            extracted = repository.saveExtraction(extracting.completeExtraction(Instant.now(clock)), pages);
         } catch (RuntimeException exception) {
-            String reason = safeFailureReason(exception);
+            String reason = safeExtractionFailureReason(exception);
             SourceDocument failed = extracting.failExtraction(reason, Instant.now(clock));
             return snapshot(repository.save(failed));
+        }
+        return index(extracted);
+    }
+
+    private DocumentSnapshot resumeIngestion(SourceDocument document) {
+        return switch (document.status()) {
+            case UPLOADED, EXTRACTION_FAILED -> extract(document);
+            case EXTRACTED, INDEXING_FAILED -> index(document);
+            case EXTRACTING, INDEXING, INDEXED -> snapshot(document);
+        };
+    }
+
+    private DocumentSnapshot index(SourceDocument document) {
+        if (document.status() == DocumentStatus.INDEXED) {
+            return snapshot(document);
+        }
+        SourceDocument indexing = repository.save(document.startIndexing(Instant.now(clock)));
+        try {
+            indexer.index(indexing.id(), repository.findExtractedPages(indexing.id()));
+            return snapshot(repository.save(indexing.completeIndexing(Instant.now(clock))));
+        } catch (RuntimeException exception) {
+            String reason = safeIndexingFailureReason(exception);
+            return snapshot(repository.save(indexing.failIndexing(reason, Instant.now(clock))));
         }
     }
 
     DocumentSnapshot snapshot(SourceDocument document) {
         int pageCount =
-                document.status() == DocumentStatus.EXTRACTED ? repository.extractedPageCount(document.id()) : 0;
+                switch (document.status()) {
+                    case EXTRACTED, INDEXING, INDEXED, INDEXING_FAILED -> repository.extractedPageCount(document.id());
+                    case UPLOADED, EXTRACTING, EXTRACTION_FAILED -> 0;
+                };
         return new DocumentSnapshot(
                 document.id(),
                 document.title(),
@@ -219,11 +251,18 @@ public class DocumentManagement {
         }
     }
 
-    private static String safeFailureReason(RuntimeException exception) {
+    private static String safeExtractionFailureReason(RuntimeException exception) {
         if (exception instanceof DocumentExtractionException && exception.getMessage() != null) {
             return truncate(exception.getMessage(), 500);
         }
         return "Document extraction failed";
+    }
+
+    private static String safeIndexingFailureReason(RuntimeException exception) {
+        if (exception instanceof DocumentIndexingException && exception.getMessage() != null) {
+            return truncate(exception.getMessage(), 500);
+        }
+        return "Document indexing failed";
     }
 
     private static String truncate(String value, int maxLength) {

@@ -17,4 +17,6 @@ public interface DocumentRepository {
     DocumentPage findAll(int page, int size);
 
     int extractedPageCount(UUID documentId);
+
+    List<ExtractedPage> findExtractedPages(UUID documentId);
 }

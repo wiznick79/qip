@@ -43,7 +43,7 @@ class DocumentProblemHandler {
     @ExceptionHandler(InvalidDocumentStateException.class)
     ProblemDetail invalidState(InvalidDocumentStateException exception) {
         ProblemDetail problem =
-                ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Document extraction is already in progress.");
+                ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Document cannot enter the requested state.");
         problem.setType(URI.create("https://github.com/wiznick79/qip/problems/invalid-document-state"));
         problem.setTitle("Invalid document state");
         problem.setProperty("currentStatus", exception.currentStatus());

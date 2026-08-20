@@ -30,7 +30,14 @@ export type Incident = {
   updatedAt: string;
 };
 
-export type DocumentStatus = "UPLOADED" | "EXTRACTING" | "EXTRACTED" | "EXTRACTION_FAILED";
+export type DocumentStatus =
+  | "UPLOADED"
+  | "EXTRACTING"
+  | "EXTRACTED"
+  | "EXTRACTION_FAILED"
+  | "INDEXING"
+  | "INDEXED"
+  | "INDEXING_FAILED";
 
 export type SourceDocument = {
   id: string;

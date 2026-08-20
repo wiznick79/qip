@@ -21,3 +21,9 @@ qip:
     max-upload-bytes: 10485760
     max-pages: 500
     max-extracted-characters: 5000000
+  knowledge:
+    chunk-size: 800
+    chunk-overlap: 120
+    embedding-batch-size: 32
+    fake-embedding-dimensions: 64
+    spring-ai-model-id: ${QIP_EMBEDDING_MODEL_ID:spring-ai-configured}
