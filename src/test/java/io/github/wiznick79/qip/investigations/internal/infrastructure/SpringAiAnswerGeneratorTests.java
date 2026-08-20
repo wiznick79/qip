@@ -27,7 +27,7 @@ class SpringAiAnswerGeneratorTests {
                 ANSWER: Inspect the synthetic seal.
                 ```
                 """);
-        var generator = new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b");
+        var generator = generator(model);
 
         var answer = generator.generate(prompt());
 
@@ -45,7 +45,7 @@ class SpringAiAnswerGeneratorTests {
                 CITATIONS: NONE
                 ANSWER: The supplied source does not answer the question.
                 """);
-        var generator = new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b");
+        var generator = generator(model);
 
         var answer = generator.generate(prompt());
 
@@ -62,7 +62,7 @@ class SpringAiAnswerGeneratorTests {
                 CITATIONS: 00000000-0000-0000-0000-000000000891, 00000000-0000-0000-0000-000000000892
                 ANSWER: Inspect the return filter (Passages %s and %s).
                 """.formatted(PASSAGE_ID, secondPassageId));
-        var generator = new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b");
+        var generator = generator(model);
 
         var answer = generator.generate(prompt());
 
@@ -75,7 +75,7 @@ class SpringAiAnswerGeneratorTests {
     void rejectsMalformedProviderOutput() {
         ChatModel model = mock(ChatModel.class);
         when(model.call(anyString())).thenReturn("The answer is probably a seal failure.");
-        var generator = new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b");
+        var generator = generator(model);
 
         assertThatThrownBy(() -> generator.generate(prompt()))
                 .isInstanceOf(AnswerGenerationException.class)
@@ -83,14 +83,69 @@ class SpringAiAnswerGeneratorTests {
     }
 
     @Test
+    void rejectsConflictingResponseBlocksAppendedToAnAnswer() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.call(anyString())).thenReturn("""
+                STATUS: GROUNDED
+                CITATIONS: 00000000-0000-0000-0000-000000000891
+                ANSWER: Inspect the return filter first.
+                INSUFFICIENT\\_EVIDENCE
+                CITATIONS: NONE
+                ANSWER: The evidence does not confirm a root cause.
+                """);
+        var generator = generator(model);
+
+        assertThatThrownBy(() -> generator.generate(prompt()))
+                .isInstanceOf(AnswerGenerationException.class)
+                .hasMessage("Answer provider returned conflicting response blocks");
+    }
+
+    @Test
     void wrapsProviderFailuresWithoutExposingTheProviderPayload() {
         ChatModel model = mock(ChatModel.class);
         when(model.call(anyString())).thenThrow(new IllegalStateException("sensitive provider detail"));
-        var generator = new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b");
+        var generator = generator(model);
 
         assertThatThrownBy(() -> generator.generate(prompt()))
                 .isInstanceOf(AnswerGenerationException.class)
                 .hasMessage("Answer provider failed");
+    }
+
+    @Test
+    void rejectsEmptyOversizedAndCitedInsufficientAnswers() {
+        ChatModel model = mock(ChatModel.class);
+        var generator = new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b", 100);
+
+        when(model.call(anyString())).thenReturn("""
+                STATUS: GROUNDED
+                CITATIONS: 00000000-0000-0000-0000-000000000891
+                ANSWER:
+                """);
+        assertThatThrownBy(() -> generator.generate(prompt()))
+                .isInstanceOf(AnswerGenerationException.class)
+                .hasMessage("Answer provider returned an invalid answer length");
+
+        when(model.call(anyString())).thenReturn("""
+                STATUS: GROUNDED
+                CITATIONS: 00000000-0000-0000-0000-000000000891
+                ANSWER: %s
+                """.formatted("x".repeat(101)));
+        assertThatThrownBy(() -> generator.generate(prompt()))
+                .isInstanceOf(AnswerGenerationException.class)
+                .hasMessage("Answer provider returned an invalid answer length");
+
+        when(model.call(anyString())).thenReturn("""
+                STATUS: INSUFFICIENT_EVIDENCE
+                CITATIONS: 00000000-0000-0000-0000-000000000891
+                ANSWER: The source is insufficient.
+                """);
+        assertThatThrownBy(() -> generator.generate(prompt()))
+                .isInstanceOf(AnswerGenerationException.class)
+                .hasMessage("Insufficient-evidence response contained citations");
+    }
+
+    private static SpringAiAnswerGenerator generator(ChatModel model) {
+        return new SpringAiAnswerGenerator(model, "ollama:qwen3-coder:30b", 4_000);
     }
 
     private static GroundedPrompt prompt() {

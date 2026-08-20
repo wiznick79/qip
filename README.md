@@ -14,6 +14,8 @@ Start with:
 - [ADR 0004: pgvector and embedding ports](docs/adr/0004-use-pgvector-with-application-owned-embedding-ports.md)
 - [ADR 0005: grounded answers and citation validation](docs/adr/0005-grounded-answer-orchestration-and-citation-validation.md)
 - [ADR 0006: local Ollama model provider](docs/adr/0006-use-ollama-for-local-model-inference.md)
+- [ADR 0007: operational API and generated module documentation](docs/adr/0007-use-actuator-springdoc-and-generated-module-docs.md)
+- [Local MVP demonstration](docs/demo.md)
 
 ## Development
 
@@ -160,7 +162,19 @@ Vite serves the development UI at `http://localhost:5173` and proxies `/api` to 
 
 The web client covers asset registration, incident reporting/filtering, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, and exposes citation passages. It is not a site-wide unconstrained chat box.
 
-The repository currently contains the milestone 9 local-model integration. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+The repository contains the Milestone 10 hardened local MVP. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+
+API and operational endpoints are available while QIP is running:
+
+```text
+Swagger UI  http://localhost:8080/swagger-ui.html
+OpenAPI     http://localhost:8080/v3/api-docs
+Health      http://localhost:8080/actuator/health
+Liveness    http://localhost:8080/actuator/health/liveness
+Readiness   http://localhost:8080/actuator/health/readiness
+```
+
+Only health is exposed through Actuator, and component details are hidden. Maven verification also generates Spring Modulith PlantUML diagrams and module canvases under `target/spring-modulith-docs/`.
 
 ## Synthetic demo data
 
@@ -171,3 +185,11 @@ The repository includes three fictional machines and matching three-page PDF man
 ```
 
 Pass `-BaseUrl` when the application uses another address. The loader skips assets that already have the same synthetic external reference, while document uploads reuse existing content through QIP's checksum policy. The source manifest is `samples/machines.json`; generated documents live under `output/pdf/`. Every name, value, scenario, and procedure is invented and must not be applied to real equipment.
+
+Run the complete scripted case with:
+
+```powershell
+.\scripts\run-synthetic-investigation.ps1 -ReindexDocuments
+```
+
+The versioned retrieval regression set is under `samples/evaluation/`. The default build evaluates it with the deterministic offline embedding adapter; see [the demo walkthrough](docs/demo.md) for the full local flow.

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -57,6 +58,8 @@ class PdfBoxTextExtractor implements TextExtractor {
                 }
             }
             return List.copyOf(pages);
+        } catch (InvalidPasswordException exception) {
+            throw new DocumentExtractionException("Encrypted PDF documents are not supported", exception);
         } catch (IOException exception) {
             throw new DocumentExtractionException("PDF content could not be parsed", exception);
         }

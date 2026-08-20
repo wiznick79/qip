@@ -74,7 +74,7 @@ try {
         Write-Host "Uploaded document: $($uploaded.title) [$($uploaded.status)]"
         if ($ReindexDocuments) {
             $reindexed = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/documents/$($uploaded.id)/indexing"
-            Write-Host "Re-indexed document: $($reindexed.title) [$($reindexed.status)]"
+            Write-Host "Re-indexed document: $($uploaded.title) [$($reindexed.status)]"
         }
     }
 }

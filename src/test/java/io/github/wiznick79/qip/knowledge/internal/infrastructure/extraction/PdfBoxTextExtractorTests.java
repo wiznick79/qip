@@ -10,6 +10,8 @@ import java.io.IOException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,27 @@ class PdfBoxTextExtractorTests {
                         "12345".getBytes(java.nio.charset.StandardCharsets.UTF_8), DocumentMediaType.PLAIN_TEXT))
                 .isInstanceOf(DocumentExtractionException.class)
                 .hasMessageContaining("text limit");
+    }
+
+    @Test
+    void reportsEncryptedPdfAsAControlledUnsupportedInput() throws IOException {
+        var extractor = new PdfBoxTextExtractor(10, 1_000);
+
+        assertThatThrownBy(() -> extractor.extract(encryptedPdf(), DocumentMediaType.PDF))
+                .isInstanceOf(DocumentExtractionException.class)
+                .hasMessage("Encrypted PDF documents are not supported");
+    }
+
+    private static byte[] encryptedPdf() throws IOException {
+        try (PDDocument document = new PDDocument();
+                ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            document.addPage(new PDPage());
+            var policy = new StandardProtectionPolicy("owner-password", "user-password", new AccessPermission());
+            policy.setEncryptionKeyLength(128);
+            document.protect(policy);
+            document.save(output);
+            return output.toByteArray();
+        }
     }
 
     private static byte[] pdfWithPages(String... pageTexts) throws IOException {
