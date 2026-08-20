@@ -9,6 +9,9 @@
 target/
 out/
 /data/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
 
 *.log
 *.tmp

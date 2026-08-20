@@ -21,5 +21,14 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify frontend
+        working-directory: frontend
+        run: npm ci && npm run verify
       - name: Verify
         run: ./mvnw --batch-mode --no-transfer-progress verify

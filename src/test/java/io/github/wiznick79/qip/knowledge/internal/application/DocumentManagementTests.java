@@ -129,6 +129,25 @@ class DocumentManagementTests {
         }
 
         @Override
+        public DocumentPage findAll(int page, int size) {
+            var items = documents.values().stream()
+                    .map(document -> new io.github.wiznick79.qip.knowledge.api.DocumentSnapshot(
+                            document.id(),
+                            document.title(),
+                            document.originalFilename(),
+                            document.mediaType(),
+                            document.sizeBytes(),
+                            document.checksumSha256(),
+                            document.status(),
+                            document.failureReason(),
+                            extractedPageCount(document.id()),
+                            document.uploadedAt(),
+                            document.updatedAt()))
+                    .toList();
+            return new DocumentPage(items, page, size, items.size());
+        }
+
+        @Override
         public int extractedPageCount(UUID documentId) {
             return pages.getOrDefault(documentId, List.of()).size();
         }

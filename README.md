@@ -10,6 +10,7 @@ Start with:
 - [Engineering instructions](AGENTS.md)
 - [ADR 0001: modular monolith and single Maven module](docs/adr/0001-modular-monolith-and-single-maven-module.md)
 - [ADR 0002: bounded PDF extraction with PDFBox](docs/adr/0002-use-pdfbox-for-bounded-pdf-extraction.md)
+- [ADR 0003: React and Vite web client](docs/adr/0003-use-react-and-vite-for-the-web-client.md)
 
 ## Development
 
@@ -92,4 +93,24 @@ Uploads are limited to 10 MiB and to `application/pdf` or UTF-8 `text/plain`. QI
 
 The storage directory defaults to `./data/documents` and can be overridden with `QIP_DOCUMENT_STORAGE_DIRECTORY`. Uploaded content and extracted text are intentionally ignored by Git.
 
-The repository currently contains the complete milestone 5 document storage and extraction slice. Embeddings and LLM integration have not been implemented yet.
+Document metadata can be listed with bounded pagination:
+
+```text
+GET /api/documents?page=0&size=20
+```
+
+## Web client
+
+The React and TypeScript client lives under `frontend/`. Start Spring Boot on port 8080, then run:
+
+```shell
+cd frontend
+npm ci
+npm run dev
+```
+
+Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
+
+The first UI increment covers asset registration, incident reporting/filtering, document upload, and ingestion status. It deliberately has no generic chat panel; the structured investigation workspace arrives with grounded question answering.
+
+The repository currently contains the milestone 6 frontend foundation. Embeddings and LLM integration have not been implemented yet.

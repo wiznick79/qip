@@ -165,7 +165,7 @@ There is one application process and one PostgreSQL instance. Module boundaries 
 
 Backend vertical slices come first so that the UI consumes stable, tested contracts. Once assets, incidents, and document upload form a meaningful workflow, add a thin TypeScript web client under `frontend/` in the same repository. Select its framework in a short ADR at that point rather than preselecting one before its requirements exist.
 
-Initially the frontend shares the application's release lifecycle. It may be served as static assets by Spring Boot or built as a separate artifact in the same deployment; choose the simpler option during the frontend spike. Independent deployment is justified only if release cadence, caching, team ownership, or hosting requirements later differ.
+The milestone 6 spike selected React 19 with strict TypeScript and Vite 8, recorded in ADR 0003. The frontend shares the application's release lifecycle and its production assets are packaged into the Spring Boot JAR. Vite proxies `/api` during local development. Independent deployment remains justified only if release cadence, caching, team ownership, or hosting requirements later differ.
 
 The first UI increment covers navigation, assets, incidents, document upload, and ingestion status. The grounded question-and-answer milestone then adds the investigation workspace, source panel, and document passage navigation. The conversational panel is part of a structured case, not a site-wide unconstrained chat box.
 
@@ -330,6 +330,7 @@ GET    /api/incidents/{incidentId}/evidence
 POST   /api/documents                 multipart upload
 GET    /api/documents/{documentId}
 GET    /api/documents/{documentId}/status
+GET    /api/documents?page=&size=
 
 POST   /api/incidents/{incidentId}/investigations
 POST   /api/investigations/{investigationId}/questions

@@ -1,16 +1,22 @@
 package io.github.wiznick79.qip.knowledge.internal.infrastructure.persistence;
 
+import io.github.wiznick79.qip.knowledge.internal.application.DocumentPage;
 import io.github.wiznick79.qip.knowledge.internal.application.DocumentRepository;
 import io.github.wiznick79.qip.knowledge.internal.application.ExtractedPage;
 import io.github.wiznick79.qip.knowledge.internal.domain.SourceDocument;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 class JpaDocumentRepositoryAdapter implements DocumentRepository {
+
+    private static final Sort DOCUMENT_ORDER =
+            Sort.by("uploadedAt").descending().and(Sort.by("id").ascending());
 
     private final SpringDataSourceDocumentRepository documents;
     private final SpringDataExtractedPageRepository pages;
@@ -47,6 +53,28 @@ class JpaDocumentRepositoryAdapter implements DocumentRepository {
     @Transactional(readOnly = true)
     public Optional<SourceDocument> findByChecksum(String checksumSha256) {
         return documents.findByChecksumSha256(checksumSha256).map(SourceDocumentJpaEntity::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentPage findAll(int page, int size) {
+        var result = documents.findAll(PageRequest.of(page, size, DOCUMENT_ORDER));
+        var snapshots = result.getContent().stream()
+                .map(SourceDocumentJpaEntity::toDomain)
+                .map(document -> new io.github.wiznick79.qip.knowledge.api.DocumentSnapshot(
+                        document.id(),
+                        document.title(),
+                        document.originalFilename(),
+                        document.mediaType(),
+                        document.sizeBytes(),
+                        document.checksumSha256(),
+                        document.status(),
+                        document.failureReason(),
+                        Math.toIntExact(pages.countByDocumentId(document.id())),
+                        document.uploadedAt(),
+                        document.updatedAt()))
+                .toList();
+        return new DocumentPage(snapshots, result.getNumber(), result.getSize(), result.getTotalElements());
     }
 
     @Override

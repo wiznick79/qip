@@ -91,6 +91,10 @@ public class DocumentManagement {
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
     }
 
+    public DocumentPage listDocuments(int page, int size) {
+        return repository.findAll(page, size);
+    }
+
     private DocumentSnapshot extract(SourceDocument document) {
         if (document.status() == DocumentStatus.EXTRACTED) {
             return snapshot(document);
@@ -111,7 +115,7 @@ public class DocumentManagement {
         }
     }
 
-    private DocumentSnapshot snapshot(SourceDocument document) {
+    DocumentSnapshot snapshot(SourceDocument document) {
         int pageCount =
                 document.status() == DocumentStatus.EXTRACTED ? repository.extractedPageCount(document.id()) : 0;
         return new DocumentSnapshot(

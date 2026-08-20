@@ -14,5 +14,7 @@ public interface DocumentRepository {
 
     Optional<SourceDocument> findByChecksum(String checksumSha256);
 
+    DocumentPage findAll(int page, int size);
+
     int extractedPageCount(UUID documentId);
 }

@@ -104,6 +104,21 @@ class DocumentApiIntegrationTests {
     }
 
     @Test
+    void listsDocumentsWithBoundedMetadata() throws Exception {
+        upload("first.txt", "text/plain", "First synthetic document", true);
+        upload("second.txt", "text/plain", "Second synthetic document", true);
+
+        mockMvc.perform(get("/api/documents").queryParam("page", "0").queryParam("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].status").value("EXTRACTED"))
+                .andExpect(jsonPath("$.items[0].extractedPageCount").value(1))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
     void rejectsMediaTypeSpoofingBeforeCreatingMetadata() throws Exception {
         mockMvc.perform(multipart("/api/documents")
                         .file(title("Spoofed PDF"))
