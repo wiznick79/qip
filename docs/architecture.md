@@ -1,6 +1,6 @@
 # Architecture and MVP
 
-Status: local MVP implemented through milestone 10
+Status: local MVP implemented through milestone 10; milestone 11 human-review slice in progress
 Last updated: 2026-08-20
 
 ## 1. Product definition
@@ -84,6 +84,7 @@ Identifiers are application-owned opaque IDs (prefer UUIDs). Cross-module refere
 | `Question` | A user's request within an investigation: ID, investigation ID, text, selected document IDs, asked-at time. |
 | `GroundedAnswer` | Generated result: answer text, model information, completion status, citations, and diagnostic metadata safe for users. |
 | `Citation` | Link from an answer to a passage: document/passage IDs, human-readable locator, excerpt, and relevance metadata. |
+| `Finding` | A human-proposed conclusion sourced from one grounded answer. It remains `DRAFT` until explicitly `CONFIRMED` or `REJECTED` with reviewer provenance and rationale. |
 
 ### Invariants
 
@@ -94,6 +95,7 @@ Identifiers are application-owned opaque IDs (prefer UUIDs). Cross-module refere
 - An answer is `GROUNDED` only when every factual claim intended as source-derived is supported by returned citations. If retrieval is insufficient, the answer says so instead of filling gaps.
 - Deleting or replacing a document invalidates its passages; stale passages must never remain retrievable.
 - Model output is never persisted as human evidence without an explicit user action and provenance label.
+- Only a grounded answer with validated citations can source a finding; review is terminal and append-only audit events preserve proposal and decision provenance.
 
 ## 4. Module boundaries
 
@@ -223,6 +225,12 @@ The milestone 9 provider integration uses Spring AI's Ollama starter behind the 
 
 The milestone 10 hardening slice exposes only Actuator health with hidden details and explicit liveness/readiness groups, generates OpenAPI and Swagger UI from the application, and produces PlantUML diagrams plus module canvases from the verified Spring Modulith model during tests. The versioned synthetic evaluation set checks the deterministic retrieval baseline against expected documents, pages, relevance floors, and evidence terms. Generated model answers have an application-enforced length bound, and encrypted PDFs receive a controlled unsupported-input outcome. ADR 0007 records the operational documentation choices.
 
+### Human-reviewed findings
+
+The first milestone 11 slice adds an explicit boundary between generated decision support and accountable conclusions. A caller may propose one immutable draft finding from a `GROUNDED` question with validated citations, supplying a human-edited summary and proposer reference. Insufficient, failed, and still-processing answers are ineligible.
+
+A draft has one terminal transition to `CONFIRMED` or `REJECTED`. Review requires a reviewer reference and rationale, and both proposal and review append immutable audit events. Repeated review and silent editing are rejected. Actor references remain caller-supplied provenance labels until authentication exists; the UI states this limitation. ADR 0008 records the decision. Investigation closure and a human-authored closure summary remain the next Milestone 11 increment.
+
 ### AI concepts used in the MVP
 
 - **Embedding:** a numeric representation of text in which semantically similar passages tend to be near one another. It solves vocabulary mismatch better than exact keyword search. It does not understand truth and is not an answer by itself. An initial alternative is PostgreSQL full-text search; hybrid keyword/vector retrieval can be evaluated later.
@@ -347,6 +355,8 @@ GET    /api/documents?page=&size=
 POST   /api/incidents/{incidentId}/investigations
 POST   /api/investigations/{investigationId}/questions
 GET    /api/investigations/{investigationId}
+POST   /api/investigations/{investigationId}/findings
+POST   /api/investigations/{investigationId}/findings/{findingId}/reviews
 ```
 
 The question response includes answer status, answer text, citations, and model/retrieval metadata suitable for debugging without exposing secrets or hidden prompts.

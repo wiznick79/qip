@@ -5,6 +5,8 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   Investigation,
+  Finding,
+  FindingStatus,
   Page,
   ProblemDetails,
   SourceDocument,
@@ -72,4 +74,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ question, documentIds }),
     }),
+  proposeFinding: (
+    investigationId: string,
+    input: { sourceQuestionId: string; summary: string; proposedBy: string },
+  ) => request<Finding>(`/api/investigations/${investigationId}/findings`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
+  reviewFinding: (
+    investigationId: string,
+    findingId: string,
+    input: { decision: Exclude<FindingStatus, "DRAFT">; reviewerReference: string; rationale: string },
+  ) => request<Finding>(`/api/investigations/${investigationId}/findings/${findingId}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
 };

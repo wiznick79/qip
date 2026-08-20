@@ -36,6 +36,24 @@ $questionBody = @{
 } | ConvertTo-Json
 $answer = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($investigation.id)/questions" -ContentType "application/json" -Body $questionBody
 
+$finding = $null
+$reviewedFinding = $null
+if ($answer.status -eq "GROUNDED") {
+    $findingBody = @{
+        sourceQuestionId = $answer.id
+        summary = $answer.answer
+        proposedBy = "synthetic-demo-investigator"
+    } | ConvertTo-Json
+    $finding = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($investigation.id)/findings" -ContentType "application/json" -Body $findingBody
+
+    $reviewBody = @{
+        decision = "CONFIRMED"
+        reviewerReference = "synthetic-demo-reviewer"
+        rationale = "The synthetic source citation and recorded incident conditions support retaining this inspection finding."
+    } | ConvertTo-Json
+    $reviewedFinding = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($investigation.id)/findings/$($finding.id)/reviews" -ContentType "application/json" -Body $reviewBody
+}
+
 Write-Host "Synthetic investigation completed."
 Write-Host "Incident: $($incident.id)"
 Write-Host "Investigation: $($investigation.id)"
@@ -43,4 +61,8 @@ Write-Host "Status: $($answer.status)"
 Write-Host "Answer: $($answer.answer)"
 foreach ($citation in $answer.citations) {
     Write-Host "Source: $($citation.documentTitle), page $($citation.pageNumber), relevance $($citation.relevanceScore)"
+}
+if ($null -ne $reviewedFinding) {
+    Write-Host "Finding: $($reviewedFinding.status) by $($reviewedFinding.reviewedBy) [$($reviewedFinding.id)]"
+    Write-Host "Review events: $($reviewedFinding.events.Count)"
 }

@@ -45,6 +45,8 @@ class InvestigationApiIntegrationTests {
 
     @BeforeEach
     void clearData() {
+        jdbc.sql("DELETE FROM finding_review_events").update();
+        jdbc.sql("DELETE FROM investigation_findings").update();
         jdbc.sql("DELETE FROM answer_citations").update();
         jdbc.sql("DELETE FROM investigation_questions").update();
         jdbc.sql("DELETE FROM investigations").update();
@@ -72,9 +74,10 @@ class InvestigationApiIntegrationTests {
                 .getContentAsString();
         String investigationId = JsonPath.read(investigationResponse, "$.id");
 
-        mockMvc.perform(post("/api/investigations/{investigationId}/questions", investigationId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        String questionResponse = mockMvc.perform(
+                        post("/api/investigations/{investigationId}/questions", investigationId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
                                 {
                                   "question": "What component should be inspected for the oil leak?",
                                   "documentIds": ["%s"]
@@ -87,17 +90,79 @@ class InvestigationApiIntegrationTests {
                 .andExpect(jsonPath("$.citations[0].documentId").value(documentId))
                 .andExpect(jsonPath("$.citations[0].pageNumber").value(1))
                 .andExpect(jsonPath("$.modelId").value("deterministic-grounded-v1"))
-                .andExpect(jsonPath("$.promptVersion").value("grounded-answer-v2"));
+                .andExpect(jsonPath("$.promptVersion").value("grounded-answer-v2"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String questionId = JsonPath.read(questionResponse, "$.id");
+
+        String findingResponse = mockMvc.perform(post("/api/investigations/{investigationId}/findings", investigationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceQuestionId": "%s",
+                                  "summary": "The hydraulic seal should be inspected before restart.",
+                                  "proposedBy": "wiznick79"
+                                }
+                                """.formatted(questionId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.sourceQuestionId").value(questionId))
+                .andExpect(jsonPath("$.reviewedBy").doesNotExist())
+                .andExpect(jsonPath("$.events.length()").value(1))
+                .andExpect(jsonPath("$.events[0].type").value("PROPOSED"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String findingId = JsonPath.read(findingResponse, "$.id");
+
+        mockMvc.perform(post(
+                                "/api/investigations/{investigationId}/findings/{findingId}/reviews",
+                                investigationId,
+                                findingId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "CONFIRMED",
+                                  "reviewerReference": "wiznick79",
+                                  "rationale": "The cited manual and recorded observation support this inspection."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.reviewedBy").value("wiznick79"))
+                .andExpect(jsonPath("$.events.length()").value(2))
+                .andExpect(jsonPath("$.events[1].type").value("CONFIRMED"));
+
+        mockMvc.perform(post(
+                                "/api/investigations/{investigationId}/findings/{findingId}/reviews",
+                                investigationId,
+                                findingId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "REJECTED",
+                                  "reviewerReference": "another-reviewer",
+                                  "rationale": "Attempt to overwrite the decision."
+                                }
+                                """))
+                .andExpect(status().isConflict());
 
         mockMvc.perform(get("/api/investigations/{investigationId}", investigationId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.questions.length()").value(1))
-                .andExpect(jsonPath("$.questions[0].status").value("GROUNDED"));
+                .andExpect(jsonPath("$.questions[0].status").value("GROUNDED"))
+                .andExpect(jsonPath("$.findings.length()").value(1))
+                .andExpect(jsonPath("$.findings[0].status").value("CONFIRMED"));
 
         Integer citationCount = jdbc.sql("SELECT count(*) FROM answer_citations")
                 .query(Integer.class)
                 .single();
         org.assertj.core.api.Assertions.assertThat(citationCount).isOne();
+        Integer reviewEventCount = jdbc.sql("SELECT count(*) FROM finding_review_events")
+                .query(Integer.class)
+                .single();
+        org.assertj.core.api.Assertions.assertThat(reviewEventCount).isEqualTo(2);
     }
 
     @Test
@@ -109,7 +174,7 @@ class InvestigationApiIntegrationTests {
                 .getContentAsString();
         String investigationId = JsonPath.read(investigationResponse, "$.id");
 
-        mockMvc.perform(post("/api/investigations/{investigationId}/questions", investigationId)
+        String response = mockMvc.perform(post("/api/investigations/{investigationId}/questions", investigationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -120,8 +185,24 @@ class InvestigationApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("INSUFFICIENT_EVIDENCE"))
                 .andExpect(jsonPath("$.citations").isEmpty())
-                .andExpect(jsonPath("$.answer")
-                        .value(org.hamcrest.Matchers.containsString("not provide enough evidence")));
+                .andExpect(
+                        jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("not provide enough evidence")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String questionId = JsonPath.read(response, "$.id");
+        mockMvc.perform(post("/api/investigations/{investigationId}/findings", investigationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sourceQuestionId": "%s",
+                                  "summary": "Unsupported conclusion",
+                                  "proposedBy": "wiznick79"
+                                }
+                                """.formatted(questionId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Only a grounded answer with citations can become a finding"));
     }
 
     @Test

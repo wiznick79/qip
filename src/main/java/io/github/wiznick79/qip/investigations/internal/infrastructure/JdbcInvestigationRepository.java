@@ -142,6 +142,19 @@ class JdbcInvestigationRepository implements InvestigationRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<InvestigationQuestion> findQuestion(UUID investigationId, UUID questionId) {
+        return jdbc.sql("""
+                        SELECT %s FROM investigation_questions
+                        WHERE investigation_id = :investigationId AND id = :questionId
+                        """.formatted(QUESTION_COLUMNS))
+                .param("investigationId", investigationId)
+                .param("questionId", questionId)
+                .query((result, rowNumber) -> mapQuestion(result, findCitations(questionId)))
+                .optional();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<InvestigationQuestion> findQuestions(UUID investigationId) {
         List<InvestigationQuestion> questions = jdbc.sql("""
                         SELECT * FROM (

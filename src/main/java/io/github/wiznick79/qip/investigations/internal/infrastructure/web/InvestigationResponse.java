@@ -6,7 +6,12 @@ import java.util.List;
 import java.util.UUID;
 
 record InvestigationResponse(
-        UUID id, UUID incidentId, List<QuestionAnswerResponse> questions, Instant createdAt, Instant updatedAt) {
+        UUID id,
+        UUID incidentId,
+        List<QuestionAnswerResponse> questions,
+        List<FindingResponse> findings,
+        Instant createdAt,
+        Instant updatedAt) {
     static InvestigationResponse from(InvestigationSnapshot investigation) {
         return new InvestigationResponse(
                 investigation.id(),
@@ -14,6 +19,7 @@ record InvestigationResponse(
                 investigation.questions().stream()
                         .map(QuestionAnswerResponse::from)
                         .toList(),
+                investigation.findings().stream().map(FindingResponse::from).toList(),
                 investigation.createdAt(),
                 investigation.updatedAt());
     }

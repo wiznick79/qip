@@ -34,6 +34,7 @@ public class InvestigationManagement {
     private final KnowledgeSearch knowledge;
     private final GroundedPromptBuilder prompts;
     private final AnswerGenerator answers;
+    private final FindingManagement findings;
     private final InvestigationIdGenerator investigationIds;
     private final QuestionIdGenerator questionIds;
     private final Clock clock;
@@ -46,6 +47,7 @@ public class InvestigationManagement {
             KnowledgeSearch knowledge,
             GroundedPromptBuilder prompts,
             AnswerGenerator answers,
+            FindingManagement findings,
             InvestigationIdGenerator investigationIds,
             QuestionIdGenerator questionIds,
             Clock clock,
@@ -62,6 +64,7 @@ public class InvestigationManagement {
         this.knowledge = knowledge;
         this.prompts = prompts;
         this.answers = answers;
+        this.findings = findings;
         this.investigationIds = investigationIds;
         this.questionIds = questionIds;
         this.clock = clock;
@@ -234,6 +237,7 @@ public class InvestigationManagement {
                 repository.findQuestions(investigation.id()).stream()
                         .map(InvestigationManagement::snapshot)
                         .toList(),
+                findings.list(investigation.id()),
                 investigation.createdAt(),
                 investigation.updatedAt());
     }
