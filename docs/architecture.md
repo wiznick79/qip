@@ -1,6 +1,6 @@
 # Architecture and MVP
 
-Status: initial design baseline  
+Status: local MVP implemented through milestone 10
 Last updated: 2026-08-20
 
 ## 1. Product definition
@@ -221,6 +221,8 @@ Retrieval returns at most six passages and can be restricted to explicitly selec
 
 The milestone 9 provider integration uses Spring AI's Ollama starter behind the existing embedding and answer ports. The default profile still selects deterministic adapters; only the explicit `ollama` profile creates local Ollama model clients. Automatic model pulling is disabled. Model tags and the base URL are environment-configurable, while safe development defaults target `qwen3-coder:30b` and `nomic-embed-text:latest`. Because vectors from different embedding models are incompatible, an already indexed document can be deliberately re-indexed; it is temporarily excluded from retrieval while its old passages are atomically replaced. ADR 0006 records this local-provider decision.
 
+The milestone 10 hardening slice exposes only Actuator health with hidden details and explicit liveness/readiness groups, generates OpenAPI and Swagger UI from the application, and produces PlantUML diagrams plus module canvases from the verified Spring Modulith model during tests. The versioned synthetic evaluation set checks the deterministic retrieval baseline against expected documents, pages, relevance floors, and evidence terms. Generated model answers have an application-enforced length bound, and encrypted PDFs receive a controlled unsupported-input outcome. ADR 0007 records the operational documentation choices.
+
 ### AI concepts used in the MVP
 
 - **Embedding:** a numeric representation of text in which semantically similar passages tend to be near one another. It solves vocabulary mismatch better than exact keyword search. It does not understand truth and is not an answer by itself. An initial alternative is PostgreSQL full-text search; hybrid keyword/vector retrieval can be evaluated later.
@@ -415,6 +417,7 @@ Each numbered item should be a small, independently reviewable change. Do not co
 10. **Demo and MVP hardening**
    - Add synthetic seed data, public/sample documents, scripted demo path, OpenAPI docs, upload/security edge-case tests, health endpoints, and architecture diagrams generated from verified modules.
    - Define a small evaluation set before declaring the MVP complete.
+   - Implemented with the synthetic loader and end-to-end investigation script, health probes, generated OpenAPI/Swagger UI, build-generated Modulith documentation, encrypted-upload and model-output hardening, and a versioned deterministic retrieval evaluation set.
 
 ## 11. Architectural decision policy
 

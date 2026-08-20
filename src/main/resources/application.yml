@@ -35,7 +35,23 @@ qip:
     retrieval-limit: 6
     minimum-relevance-score: 0.1
     max-context-characters: 12000
+    max-answer-characters: 4000
     spring-ai-model-id: ${QIP_CHAT_MODEL_ID:spring-ai-configured}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
 
 ---
 spring:
