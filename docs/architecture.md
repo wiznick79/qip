@@ -181,6 +181,12 @@ An observation is a human-authored, append-only statement attached to one incide
 
 Observation time cannot be later than the application recording time. Timeline retrieval is ordered by observation time and then opaque observation ID, both ascending, so pagination remains deterministic.
 
+### Incident evidence
+
+An evidence item is a typed, source-attributed investigation input, not a proven cause. The manual API accepts a summary, evidence type, source reference, event time, and submitter reference, then assigns `HUMAN_ENTERED` provenance on the server. Clients cannot select or upgrade provenance; attempts to submit a provenance value are rejected. Until authentication exists, the submitter reference is a caller-supplied provenance label rather than a verified identity.
+
+Evidence is append-only in this increment and is returned through a bounded timeline ordered by event time and then opaque evidence ID. Event time cannot be later than the application recording time. Imported, retrieved, and model-generated provenance values are reserved for future controlled workflows; model output cannot enter human evidence through this manual endpoint.
+
 ### Document ingestion flow
 
 1. The API validates size and allowed media type, calculates a checksum, stores the file, and creates a `SourceDocument` in `UPLOADED` state.
@@ -313,6 +319,7 @@ PATCH  /api/incidents/{incidentId}/status
 POST   /api/incidents/{incidentId}/observations
 GET    /api/incidents/{incidentId}/observations
 POST   /api/incidents/{incidentId}/evidence
+GET    /api/incidents/{incidentId}/evidence
 
 POST   /api/documents                 multipart upload
 GET    /api/documents/{documentId}
