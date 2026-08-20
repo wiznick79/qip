@@ -25,7 +25,8 @@ export function AssetsPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setSaving(true);
     setError(null);
     try {
@@ -34,7 +35,7 @@ export function AssetsPage() {
         type: String(form.get("type")) as AssetType,
         externalReference: String(form.get("externalReference") || "") || null,
       });
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
     } catch (cause) {
       setError(message(cause));

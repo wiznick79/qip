@@ -26,7 +26,7 @@ export function IncidentsPage() {
   useEffect(() => void load(), [load]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
+    event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement);
     setSaving(true); setError(null);
     try {
       await api.createIncident({
@@ -35,7 +35,7 @@ export function IncidentsPage() {
         severity: String(form.get("severity")) as IncidentSeverity,
         occurredAt: new Date(String(form.get("occurredAt"))).toISOString(),
       });
-      event.currentTarget.reset(); await load();
+      formElement.reset(); await load();
     } catch (cause) { setError(message(cause)); } finally { setSaving(false); }
   }
 

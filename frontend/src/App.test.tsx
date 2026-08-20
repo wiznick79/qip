@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "./App";
 
 describe("QIP workspace", () => {
@@ -42,6 +42,21 @@ describe("QIP workspace", () => {
   it("states the human confirmation boundary", () => {
     render(<App />);
     expect(screen.getByText(/AI findings will remain suggestions/i)).toBeInTheDocument();
+  });
+
+  it("resets the incident form after a successful asynchronous submission", async () => {
+    render(<App />);
+    expect(await screen.findByText("Synthetic Press")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /incidents/i }));
+    await screen.findByRole("heading", { name: "Incident queue" });
+
+    fireEvent.change(screen.getByLabelText("Asset"), { target: { value: "asset-1" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Synthetic vibration" } });
+    fireEvent.change(screen.getByLabelText("Occurred at"), { target: { value: "2026-08-20T18:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Report incident" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Title")).toHaveValue(""));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 

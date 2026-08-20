@@ -25,10 +25,10 @@ export function DocumentsPage() {
   }, [documents, load]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget); const file = form.get("file");
+    event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const file = form.get("file");
     if (!(file instanceof File) || file.size === 0) { setError("Choose a PDF or plain-text file."); return; }
     setUploading(true); setError(null);
-    try { await api.uploadDocument(String(form.get("title")), file); event.currentTarget.reset(); await load(); }
+    try { await api.uploadDocument(String(form.get("title")), file); formElement.reset(); await load(); }
     catch (cause) { setError(message(cause)); }
     finally { setUploading(false); }
   }
