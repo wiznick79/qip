@@ -66,10 +66,9 @@ public record SourceDocument(
     }
 
     public SourceDocument startIndexing(Instant now) {
-        if (status == DocumentStatus.INDEXED) {
-            return this;
-        }
-        if (status != DocumentStatus.EXTRACTED && status != DocumentStatus.INDEXING_FAILED) {
+        if (status != DocumentStatus.EXTRACTED
+                && status != DocumentStatus.INDEXING_FAILED
+                && status != DocumentStatus.INDEXED) {
             throw new InvalidDocumentStateException(status);
         }
         return withState(DocumentStatus.INDEXING, null, now);

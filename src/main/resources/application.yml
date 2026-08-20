@@ -1,6 +1,10 @@
 spring:
   application:
     name: qip
+  ai:
+    model:
+      chat: none
+      embedding: none
   flyway:
     enabled: true
   jpa:
@@ -32,3 +36,42 @@ qip:
     minimum-relevance-score: 0.1
     max-context-characters: 12000
     spring-ai-model-id: ${QIP_CHAT_MODEL_ID:spring-ai-configured}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: ollama
+  http:
+    clients:
+      connect-timeout: ${QIP_OLLAMA_CONNECT_TIMEOUT:5s}
+      read-timeout: ${QIP_OLLAMA_READ_TIMEOUT:3m}
+  ai:
+    retry:
+      max-attempts: 2
+      backoff:
+        initial-interval: 500ms
+        multiplier: 2
+        max-interval: 2s
+    model:
+      chat: ollama
+      embedding: ollama
+    ollama:
+      base-url: ${QIP_OLLAMA_BASE_URL:http://localhost:11434}
+      init:
+        pull-model-strategy: never
+      chat:
+        model: ${QIP_OLLAMA_CHAT_MODEL:qwen3-coder:30b}
+        temperature: 0.1
+        num-predict: 800
+        keep-alive: 5m
+      embedding:
+        model: ${QIP_OLLAMA_EMBEDDING_MODEL:nomic-embed-text:latest}
+        truncate: false
+        keep-alive: 5m
+
+qip:
+  knowledge:
+    spring-ai-model-id: ollama:${QIP_OLLAMA_EMBEDDING_MODEL:nomic-embed-text:latest}
+  investigations:
+    spring-ai-model-id: ollama:${QIP_OLLAMA_CHAT_MODEL:qwen3-coder:30b}

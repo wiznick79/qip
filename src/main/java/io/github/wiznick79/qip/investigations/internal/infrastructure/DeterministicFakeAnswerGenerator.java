@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!spring-ai")
+@Profile("!ollama")
 class DeterministicFakeAnswerGenerator implements AnswerGenerator {
 
     @Override

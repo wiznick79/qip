@@ -54,6 +54,19 @@ class SourceDocumentTests {
     }
 
     @Test
+    void permitsReindexingAnIndexedDocumentWithAnotherEmbeddingModel() {
+        var indexed = uploadedDocument()
+                .startExtraction(UPLOADED_AT.plusSeconds(1))
+                .completeExtraction(UPLOADED_AT.plusSeconds(2))
+                .startIndexing(UPLOADED_AT.plusSeconds(3))
+                .completeIndexing(UPLOADED_AT.plusSeconds(4));
+
+        var reindexing = indexed.startIndexing(UPLOADED_AT.plusSeconds(5));
+
+        assertThat(reindexing.status()).isEqualTo(DocumentStatus.INDEXING);
+    }
+
+    @Test
     void rejectsCompletingAQueuedDocument() {
         assertThatThrownBy(() -> uploadedDocument().completeExtraction(UPLOADED_AT.plusSeconds(1)))
                 .isInstanceOf(InvalidDocumentStateException.class);

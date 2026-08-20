@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!spring-ai")
+@Profile("!ollama")
 public class DeterministicFakeEmbeddingGenerator implements EmbeddingGenerator {
 
     private static final String MODEL_ID = "deterministic-hash-v1";

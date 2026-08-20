@@ -131,9 +131,6 @@ public class DocumentManagement {
     }
 
     private DocumentSnapshot index(SourceDocument document) {
-        if (document.status() == DocumentStatus.INDEXED) {
-            return snapshot(document);
-        }
         SourceDocument indexing = repository.save(document.startIndexing(Instant.now(clock)));
         try {
             indexer.index(indexing.id(), repository.findExtractedPages(indexing.id()));

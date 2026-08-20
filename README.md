@@ -13,6 +13,7 @@ Start with:
 - [ADR 0003: React and Vite web client](docs/adr/0003-use-react-and-vite-for-the-web-client.md)
 - [ADR 0004: pgvector and embedding ports](docs/adr/0004-use-pgvector-with-application-owned-embedding-ports.md)
 - [ADR 0005: grounded answers and citation validation](docs/adr/0005-grounded-answer-orchestration-and-citation-validation.md)
+- [ADR 0006: local Ollama model provider](docs/adr/0006-use-ollama-for-local-model-inference.md)
 
 ## Development
 
@@ -89,12 +90,12 @@ POST /api/documents                         multipart fields: title, file
 GET  /api/documents/{documentId}
 GET  /api/documents/{documentId}/status
 POST /api/documents/{documentId}/extraction retry failed extraction
-POST /api/documents/{documentId}/indexing   retry failed indexing
+POST /api/documents/{documentId}/indexing   retry or deliberately re-index
 ```
 
 Uploads are limited to 10 MiB and to `application/pdf` or UTF-8 `text/plain`. QIP stores files outside the web root under generated keys, computes a SHA-256 checksum, returns the existing document for duplicate content, and extracts and indexes text synchronously without holding a database transaction open during file processing or embedding. PDF page numbers are retained for later citations. Malformed, encrypted, scanned-only, or extraction-limit-breaking PDFs remain visible as `EXTRACTION_FAILED`; embedding failures remain visible as `INDEXING_FAILED`. Both may be retried.
 
-Extracted pages are split into bounded, overlapping passages and stored with pgvector embeddings. The default `deterministic-hash-v1` adapter is offline and credential-free for development and tests. It offers reproducible lexical similarity, not production semantic quality. A Spring AI 2.0 adapter is available under the `spring-ai` profile, but a provider implementation and `EmbeddingModel` configuration must be added deliberately before activating it.
+Extracted pages are split into bounded, overlapping passages and stored with pgvector embeddings. The default `deterministic-hash-v1` adapter is offline and credential-free for development and tests. It offers reproducible lexical similarity, not production semantic quality. The `ollama` profile replaces it with the locally configured Spring AI Ollama embedding model. Calling the indexing endpoint for an `INDEXED` document deliberately rebuilds and atomically replaces its passages, which is required after changing embedding models.
 
 The storage directory defaults to `./data/documents` and can be overridden with `QIP_DOCUMENT_STORAGE_DIRECTORY`. Uploaded content and extracted text are intentionally ignored by Git.
 
@@ -112,7 +113,38 @@ GET  /api/investigations/{investigationId}
 POST /api/investigations/{investigationId}/questions
 ```
 
-Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. The default answer adapter is deterministic and offline. The `spring-ai` profile requires explicitly configured `EmbeddingModel` and `ChatModel` provider beans; QIP does not ship provider credentials or select a paid model by default.
+Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. The default answer adapter is deterministic and offline. The opt-in `ollama` profile supplies local `EmbeddingModel` and `ChatModel` beans without API keys.
+
+## Local Ollama models
+
+Start Ollama with the required models already installed, then run QIP with both the database and model profiles:
+
+```powershell
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local,ollama"
+```
+
+The defaults match the initial local development setup:
+
+```text
+QIP_OLLAMA_BASE_URL=http://localhost:11434
+QIP_OLLAMA_CHAT_MODEL=qwen3-coder:30b
+QIP_OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+```
+
+QIP never pulls models automatically. Override those environment variables to select other installed tags. Model output remains untrusted: malformed responses and unknown citation identifiers are rejected by application-owned validation.
+
+Documents previously indexed by the deterministic adapter must be re-indexed once under the Ollama profile. For the synthetic dataset, run:
+
+```powershell
+.\scripts\load-synthetic-demo.ps1 -ReindexDocuments
+```
+
+Run the opt-in local model smoke test with:
+
+```powershell
+$env:QIP_LIVE_MODEL_TEST = "true"
+.\mvnw.cmd "-Dtest=SpringAiAnswerGeneratorLiveTests" test
+```
 
 ## Web client
 
@@ -128,7 +160,7 @@ Vite serves the development UI at `http://localhost:5173` and proxies `/api` to 
 
 The web client covers asset registration, incident reporting/filtering, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, and exposes citation passages. It is not a site-wide unconstrained chat box.
 
-The repository currently contains the milestone 8 grounded question-answering slice. A deterministic fake embedding and answer model make the entire workflow usable without credentials; no live provider is configured by default.
+The repository currently contains the milestone 9 local-model integration. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
 
 ## Synthetic demo data
 

@@ -1,5 +1,6 @@
 param(
-    [string]$BaseUrl = "http://localhost:8080"
+    [string]$BaseUrl = "http://localhost:8080",
+    [switch]$ReindexDocuments
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,6 +72,10 @@ try {
 
         $uploaded = Send-Document -Client $httpClient -Uri "$BaseUrl/api/documents" -Title $machine.documentTitle -DocumentPath $documentPath
         Write-Host "Uploaded document: $($uploaded.title) [$($uploaded.status)]"
+        if ($ReindexDocuments) {
+            $reindexed = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/documents/$($uploaded.id)/indexing"
+            Write-Host "Re-indexed document: $($reindexed.title) [$($reindexed.status)]"
+        }
     }
 }
 finally {

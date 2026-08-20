@@ -217,7 +217,9 @@ Only PDF and strict UTF-8 plain text are accepted. Direct PDFBox extraction reta
 
 The milestone 8 implementation creates one idempotent investigation per incident and processes questions synchronously. A question is persisted as `PROCESSING` before retrieval and ends as `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Retrieval and model calls occur outside database transactions. The final state and immutable citation snapshots are stored atomically, and investigation responses return at most the latest 100 questions in chronological order.
 
-Retrieval returns at most six passages and can be restricted to explicitly selected document IDs. Passages below the configured relevance threshold are excluded. Prompt version `grounded-answer-v1` includes bounded incident context and at most 12,000 characters of explicitly delimited, untrusted source data. A generated answer is grounded only when every cited UUID belongs to the exact prompt passage set; missing or invented citations become a controlled technical failure. Insufficient retrieval bypasses the chat model entirely. ADR 0005 records the orchestration and validation policy.
+Retrieval returns at most six passages and can be restricted to explicitly selected document IDs. Passages below the configured relevance threshold are excluded. Prompt version `grounded-answer-v2` includes bounded incident context and at most 12,000 characters of explicitly delimited, untrusted source data. It reserves passage UUIDs for the machine-readable citation field and keeps them out of the human-readable answer; the provider adapter defensively removes echoed citation annotations. A generated answer is grounded only when every cited UUID belongs to the exact prompt passage set; missing or invented citations become a controlled technical failure. Insufficient retrieval bypasses the chat model entirely. ADR 0005 records the orchestration and validation policy.
+
+The milestone 9 provider integration uses Spring AI's Ollama starter behind the existing embedding and answer ports. The default profile still selects deterministic adapters; only the explicit `ollama` profile creates local Ollama model clients. Automatic model pulling is disabled. Model tags and the base URL are environment-configurable, while safe development defaults target `qwen3-coder:30b` and `nomic-embed-text:latest`. Because vectors from different embedding models are incompatible, an already indexed document can be deliberately re-indexed; it is temporarily excluded from retrieval while its old passages are atomically replaced. ADR 0006 records this local-provider decision.
 
 ### AI concepts used in the MVP
 
@@ -231,7 +233,7 @@ Retrieval returns at most six passages and can be restricted to explicitly selec
 
 ## 6. Technology decisions
 
-The bootstrap pins Spring Boot 4.1.0, Spring Modulith 2.1.0, and Spring AI 2.0.0, compatible stable release lines selected in August 2026. Only Spring AI's provider-neutral model API is included; provider starters remain an explicit deployment choice.
+The bootstrap pins Spring Boot 4.1.0, Spring Modulith 2.1.0, and Spring AI 2.0.0, compatible stable release lines selected in August 2026. QIP includes Spring AI's Ollama starter for explicit-profile local inference; domain and application code still depend only on application-owned ports, and other providers remain deployment choices.
 
 ### MVP technologies
 
@@ -404,7 +406,13 @@ Each numbered item should be a small, independently reviewable change. Do not co
    - Add fake-model contract tests and a small opt-in live-model smoke test.
    - Extend the web client with the investigation workspace, grounded-answer statuses, citations, and passage navigation.
 
-9. **Demo and MVP hardening**
+9. **Local model provider integration**
+   - Add an explicit Ollama profile for chat and embeddings through Spring AI.
+   - Keep deterministic adapters as the default and prohibit automatic model downloads.
+   - Support deliberate re-indexing when the active embedding model changes.
+   - Add opt-in live smoke tests that require no database or paid credentials.
+
+10. **Demo and MVP hardening**
    - Add synthetic seed data, public/sample documents, scripted demo path, OpenAPI docs, upload/security edge-case tests, health endpoints, and architecture diagrams generated from verified modules.
    - Define a small evaluation set before declaring the MVP complete.
 

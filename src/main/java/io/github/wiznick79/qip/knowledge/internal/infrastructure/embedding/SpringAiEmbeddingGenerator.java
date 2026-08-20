@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("spring-ai")
+@Profile("ollama")
 public class SpringAiEmbeddingGenerator implements EmbeddingGenerator {
 
     private final EmbeddingModel model;

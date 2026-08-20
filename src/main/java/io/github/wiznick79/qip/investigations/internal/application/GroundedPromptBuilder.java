@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 class GroundedPromptBuilder {
 
-    static final String VERSION = "grounded-answer-v1";
+    static final String VERSION = "grounded-answer-v2";
 
     private final int maxContextCharacters;
 
@@ -43,6 +43,8 @@ class GroundedPromptBuilder {
                 Answer only from the supplied sources. Do not guess a cause or corrective action.
                 If the evidence cannot answer the question, return INSUFFICIENT_EVIDENCE.
                 For GROUNDED answers, cite only exact passage-id values supplied below.
+                Passage UUIDs are machine-readable metadata. Put them only on the CITATIONS line.
+                Write the ANSWER for a person: do not include UUIDs, passage IDs, or citation annotations in it.
 
                 Return exactly this format:
                 STATUS: GROUNDED or INSUFFICIENT_EVIDENCE

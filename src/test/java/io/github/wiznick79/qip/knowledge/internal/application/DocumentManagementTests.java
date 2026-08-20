@@ -99,6 +99,18 @@ class DocumentManagementTests {
     }
 
     @Test
+    void reindexesAnIndexedDocumentWithoutExtractingAgain() {
+        var uploaded = documents.upload(command("guide.txt", "content"));
+
+        var reindexed = documents.retryIndexing(uploaded.document().id());
+
+        assertThat(reindexed.status()).isEqualTo(DocumentStatus.INDEXED);
+        assertThat(extractor.calls).isEqualTo(1);
+        assertThat(indexer.calls).isEqualTo(2);
+        assertThat(repository.savedStatuses).endsWith(DocumentStatus.INDEXING, DocumentStatus.INDEXED);
+    }
+
+    @Test
     void rejectsSpoofedAndOversizedUploadsBeforeStorage() {
         assertThatThrownBy(() -> documents.upload(new UploadDocumentCommand(
                         "Guide", "guide.pdf", "application/pdf", "not a pdf".getBytes(StandardCharsets.UTF_8))))

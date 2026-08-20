@@ -8,14 +8,23 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("spring-ai")
+@Profile("ollama")
 class SpringAiAnswerGenerator implements AnswerGenerator {
+
+    private static final String UUID_EXPRESSION =
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+    private static final Pattern PARENTHETICAL_CITATION =
+            Pattern.compile("\\s*\\([^\\r\\n)]*" + UUID_EXPRESSION + "[^\\r\\n)]*\\)");
+    private static final Pattern BRACKETED_CITATION =
+            Pattern.compile("\\s*\\[[^\\r\\n]]*" + UUID_EXPRESSION + "[^\\r\\n]]*]");
+    private static final Pattern BARE_UUID = Pattern.compile(UUID_EXPRESSION);
 
     private final ChatModel model;
     private final String modelId;
@@ -44,7 +53,7 @@ class SpringAiAnswerGenerator implements AnswerGenerator {
         if (response == null || response.isBlank()) {
             throw new AnswerGenerationException("Answer provider returned an empty response");
         }
-        String[] parts = response.strip().split("\\R", 3);
+        String[] parts = stripOptionalMarkdownFence(response).split("\\R", 3);
         if (parts.length != 3
                 || !parts[0].startsWith("STATUS:")
                 || !parts[1].startsWith("CITATIONS:")
@@ -52,7 +61,8 @@ class SpringAiAnswerGenerator implements AnswerGenerator {
             throw new AnswerGenerationException("Answer provider returned an invalid response format");
         }
         String status = parts[0].substring("STATUS:".length()).trim().toUpperCase(Locale.ROOT);
-        String answer = parts[2].substring("ANSWER:".length()).trim();
+        String answer = removeMachineCitationIdentifiers(
+                parts[2].substring("ANSWER:".length()).trim());
         if (status.equals("INSUFFICIENT_EVIDENCE")) {
             return new AnswerGenerationResult(false, answer, List.of(), modelId);
         }
@@ -69,5 +79,27 @@ class SpringAiAnswerGenerator implements AnswerGenerator {
         } catch (IllegalArgumentException exception) {
             throw new AnswerGenerationException("Answer provider returned invalid citation identifiers", exception);
         }
+    }
+
+    private static String stripOptionalMarkdownFence(String response) {
+        String stripped = response.strip();
+        if (!stripped.startsWith("```") || !stripped.endsWith("```")) {
+            return stripped;
+        }
+        int firstLineEnd = stripped.indexOf('\n');
+        if (firstLineEnd < 0) {
+            return stripped;
+        }
+        return stripped.substring(firstLineEnd + 1, stripped.length() - 3).strip();
+    }
+
+    private static String removeMachineCitationIdentifiers(String answer) {
+        String withoutAnnotations = PARENTHETICAL_CITATION.matcher(answer).replaceAll("");
+        withoutAnnotations = BRACKETED_CITATION.matcher(withoutAnnotations).replaceAll("");
+        withoutAnnotations = BARE_UUID.matcher(withoutAnnotations).replaceAll("the cited source");
+        return withoutAnnotations
+                .replaceAll("[\\t ]{2,}", " ")
+                .replaceAll(" +([,.;:])", "$1")
+                .strip();
     }
 }
