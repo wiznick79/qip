@@ -1,7 +1,7 @@
 # Architecture and MVP
 
 Status: initial design baseline  
-Last updated: 2026-08-17
+Last updated: 2026-08-20
 
 ## 1. Product definition
 
@@ -197,6 +197,12 @@ Evidence is append-only in this increment and is returned through a bounded time
 
 This may initially run after the upload request using an in-process task executor, with status polling. The persisted ingestion state and an idempotent retry operation must allow interrupted jobs to be recovered after a process restart. It must not hold a database transaction open during file extraction or remote model calls. Kafka is unnecessary at MVP volume; durable messaging becomes useful only when ingestion needs independent scaling, replay, or stronger failure isolation.
 
+The milestone 5 implementation performs extraction synchronously after upload while preserving the same persisted state transitions: `UPLOADED` → `EXTRACTING` → `EXTRACTED` or `EXTRACTION_FAILED`. Repository operations use short transactions; local storage reads and PDF processing occur between them. A retry endpoint resumes failed extraction, and asking to extract an already extracted document is idempotent.
+
+File identity is the SHA-256 checksum of its bytes. Re-uploading identical content returns the original document, including its original title, rather than creating another metadata record or stored file. The original filename is untrusted display metadata: path components are removed and the local storage key is generated from the opaque document ID. Storage defaults outside the web root and is configurable for deployment.
+
+Only PDF and strict UTF-8 plain text are accepted. Direct PDFBox extraction retains non-empty pages and their one-based page numbers, bounded by configured upload, page, and extracted-character limits. Plain text is one logical page. Encrypted, malformed, scanned-only, or otherwise textless PDFs become `EXTRACTION_FAILED`; OCR is not attempted. ADR 0002 records the Tika/PDFBox comparison and selection.
+
 ### Grounded answering flow
 
 1. Validate the investigation and permitted document scope.
@@ -234,7 +240,7 @@ The bootstrap pins Spring Boot 4.1.0 and Spring Modulith 2.1.0, compatible stabl
 | Flyway | Reviewable, repeatable database schema evolution. |
 | Spring Data JPA | Straightforward transactional domain persistence; vector queries may use JDBC/native SQL behind the knowledge repository. |
 | Spring AI | Consistent Java/Spring adapters for embedding and chat models while application ports remain provider-neutral. |
-| Apache Tika or PDFBox adapter | Text extraction from the deliberately small PDF/plain-text format set. Select one after a short extraction spike. |
+| Apache PDFBox 3.0.8 adapter | Bounded, page-aware PDF extraction for the deliberately small PDF/plain-text format set; ADR 0002 records the spike. |
 | Bean Validation and RFC 9457 problem details | Stable API input and error behavior. |
 | Docker Compose | Reproducible PostgreSQL/pgvector development dependency; the application can run from the IDE. |
 | JUnit 5, AssertJ, Mockito, Testcontainers | Fast domain tests and realistic PostgreSQL/pgvector integration tests. |
