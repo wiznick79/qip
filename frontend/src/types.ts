@@ -53,6 +53,41 @@ export type SourceDocument = {
   updatedAt: string;
 };
 
+export type AnswerStatus = "PROCESSING" | "GROUNDED" | "INSUFFICIENT_EVIDENCE" | "TECHNICAL_FAILURE";
+
+export type Citation = {
+  passageId: string;
+  documentId: string;
+  documentTitle: string;
+  pageNumber: number;
+  passageSequence: number;
+  excerpt: string;
+  relevanceScore: number;
+};
+
+export type QuestionAnswer = {
+  id: string;
+  question: string;
+  selectedDocumentIds: string[];
+  status: AnswerStatus;
+  answer: string | null;
+  citations: Citation[];
+  modelId: string | null;
+  promptVersion: string;
+  retrievedPassageCount: number;
+  failureReason: string | null;
+  askedAt: string;
+  completedAt: string | null;
+};
+
+export type Investigation = {
+  id: string;
+  incidentId: string;
+  questions: QuestionAnswer[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ProblemDetails = {
   title?: string;
   detail?: string;

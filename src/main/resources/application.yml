@@ -27,3 +27,8 @@ qip:
     embedding-batch-size: 32
     fake-embedding-dimensions: 64
     spring-ai-model-id: ${QIP_EMBEDDING_MODEL_ID:spring-ai-configured}
+  investigations:
+    retrieval-limit: 6
+    minimum-relevance-score: 0.1
+    max-context-characters: 12000
+    spring-ai-model-id: ${QIP_CHAT_MODEL_ID:spring-ai-configured}

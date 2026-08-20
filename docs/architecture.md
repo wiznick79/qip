@@ -215,6 +215,10 @@ Only PDF and strict UTF-8 plain text are accepted. Direct PDFBox extraction reta
 6. Resolve cited passage markers to application-owned `Citation` objects. Reject or downgrade malformed/unknown citations.
 7. Return the answer and citations; retain safe metadata needed for later evaluation.
 
+The milestone 8 implementation creates one idempotent investigation per incident and processes questions synchronously. A question is persisted as `PROCESSING` before retrieval and ends as `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Retrieval and model calls occur outside database transactions. The final state and immutable citation snapshots are stored atomically, and investigation responses return at most the latest 100 questions in chronological order.
+
+Retrieval returns at most six passages and can be restricted to explicitly selected document IDs. Passages below the configured relevance threshold are excluded. Prompt version `grounded-answer-v1` includes bounded incident context and at most 12,000 characters of explicitly delimited, untrusted source data. A generated answer is grounded only when every cited UUID belongs to the exact prompt passage set; missing or invented citations become a controlled technical failure. Insufficient retrieval bypasses the chat model entirely. ADR 0005 records the orchestration and validation policy.
+
 ### AI concepts used in the MVP
 
 - **Embedding:** a numeric representation of text in which semantically similar passages tend to be near one another. It solves vocabulary mismatch better than exact keyword search. It does not understand truth and is not an answer by itself. An initial alternative is PostgreSQL full-text search; hybrid keyword/vector retrieval can be evaluated later.

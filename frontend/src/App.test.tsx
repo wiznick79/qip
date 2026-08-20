@@ -37,6 +37,9 @@ describe("QIP workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: /documents/i }));
     expect(await screen.findByText("Synthetic guide")).toBeInTheDocument();
     expect(screen.getByText("INDEXED")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /investigate/i }));
+    expect(await screen.findByRole("heading", { name: "Grounded questions" })).toBeInTheDocument();
   });
 
   it("states the human confirmation boundary", () => {

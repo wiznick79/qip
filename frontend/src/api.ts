@@ -4,9 +4,11 @@ import type {
   Incident,
   IncidentSeverity,
   IncidentStatus,
+  Investigation,
   Page,
   ProblemDetails,
   SourceDocument,
+  QuestionAnswer,
 } from "./types";
 
 export class ApiError extends Error {
@@ -61,4 +63,13 @@ export const api = {
     form.append("file", file);
     return request<SourceDocument>("/api/documents", { method: "POST", body: form });
   },
+  createInvestigation: (incidentId: string) =>
+    request<Investigation>(`/api/incidents/${incidentId}/investigations`, { method: "POST" }),
+  getInvestigation: (investigationId: string) =>
+    request<Investigation>(`/api/investigations/${investigationId}`),
+  askQuestion: (investigationId: string, question: string, documentIds: string[]) =>
+    request<QuestionAnswer>(`/api/investigations/${investigationId}/questions`, {
+      method: "POST",
+      body: JSON.stringify({ question, documentIds }),
+    }),
 };

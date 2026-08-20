@@ -12,6 +12,7 @@ Start with:
 - [ADR 0002: bounded PDF extraction with PDFBox](docs/adr/0002-use-pdfbox-for-bounded-pdf-extraction.md)
 - [ADR 0003: React and Vite web client](docs/adr/0003-use-react-and-vite-for-the-web-client.md)
 - [ADR 0004: pgvector and embedding ports](docs/adr/0004-use-pgvector-with-application-owned-embedding-ports.md)
+- [ADR 0005: grounded answers and citation validation](docs/adr/0005-grounded-answer-orchestration-and-citation-validation.md)
 
 ## Development
 
@@ -103,6 +104,16 @@ Document metadata can be listed with bounded pagination:
 GET /api/documents?page=0&size=20
 ```
 
+The grounded investigation slice additionally provides:
+
+```text
+POST /api/incidents/{incidentId}/investigations
+GET  /api/investigations/{investigationId}
+POST /api/investigations/{investigationId}/questions
+```
+
+Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. The default answer adapter is deterministic and offline. The `spring-ai` profile requires explicitly configured `EmbeddingModel` and `ChatModel` provider beans; QIP does not ship provider credentials or select a paid model by default.
+
 ## Web client
 
 The React and TypeScript client lives under `frontend/`. Start Spring Boot on port 8080, then run:
@@ -115,9 +126,9 @@ npm run dev
 
 Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
-The first UI increment covers asset registration, incident reporting/filtering, document upload, and ingestion status. It deliberately has no generic chat panel; the structured investigation workspace arrives with grounded question answering.
+The web client covers asset registration, incident reporting/filtering, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, and exposes citation passages. It is not a site-wide unconstrained chat box.
 
-The repository currently contains the milestone 7 knowledge-indexing slice. Grounded answer generation and the investigation workspace are the next milestone; no chat model is configured yet.
+The repository currently contains the milestone 8 grounded question-answering slice. A deterministic fake embedding and answer model make the entire workflow usable without credentials; no live provider is configured by default.
 
 ## Synthetic demo data
 

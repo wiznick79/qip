@@ -2,13 +2,15 @@ import { useState } from "react";
 import { AssetsPage } from "./pages/AssetsPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { IncidentsPage } from "./pages/IncidentsPage";
+import { InvestigationsPage } from "./pages/InvestigationsPage";
 
-type View = "assets" | "incidents" | "documents";
+type View = "assets" | "incidents" | "documents" | "investigations";
 
 const navigation: { id: View; label: string; number: string }[] = [
   { id: "assets", label: "Assets", number: "01" },
   { id: "incidents", label: "Incidents", number: "02" },
   { id: "documents", label: "Documents", number: "03" },
+  { id: "investigations", label: "Investigate", number: "04" },
 ];
 
 export function App() {
@@ -31,7 +33,10 @@ export function App() {
           <div className="grounding-note"><span aria-hidden="true">◎</span><div><strong>Evidence first</strong><p>AI findings will remain suggestions until a person confirms them.</p></div></div>
         </aside>
         <main id="main">
-          {view === "assets" ? <AssetsPage /> : view === "incidents" ? <IncidentsPage /> : <DocumentsPage />}
+          {view === "assets" ? <AssetsPage />
+            : view === "incidents" ? <IncidentsPage />
+              : view === "documents" ? <DocumentsPage />
+                : <InvestigationsPage />}
         </main>
       </div>
     </div>
