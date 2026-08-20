@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Atlas HP-40 Hydraulic Press",
+    "type": "MACHINE",
+    "externalReference": "SYN-HP-040",
+    "documentTitle": "Atlas HP-40 Synthetic Service Manual",
+    "documentFile": "atlas-hp40-service-manual.pdf"
+  },
+  {
+    "name": "Cobalt CX-22 Centrifugal Pump",
+    "type": "MACHINE",
+    "externalReference": "SYN-CX-022",
+    "documentTitle": "Cobalt CX-22 Synthetic Maintenance Guide",
+    "documentFile": "cobalt-cx22-maintenance-guide.pdf"
+  },
+  {
+    "name": "Pioneer PK-7 Packaging Conveyor",
+    "type": "MACHINE",
+    "externalReference": "SYN-PK-007",
+    "documentTitle": "Pioneer PK-7 Synthetic Operations Handbook",
+    "documentFile": "pioneer-pk7-operations-handbook.pdf"
+  }
+]

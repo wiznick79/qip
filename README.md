@@ -114,3 +114,13 @@ Vite serves the development UI at `http://localhost:5173` and proxies `/api` to 
 The first UI increment covers asset registration, incident reporting/filtering, document upload, and ingestion status. It deliberately has no generic chat panel; the structured investigation workspace arrives with grounded question answering.
 
 The repository currently contains the milestone 6 frontend foundation. Embeddings and LLM integration have not been implemented yet.
+
+## Synthetic demo data
+
+The repository includes three fictional machines and matching three-page PDF manuals for local testing. With QIP running on port 8080, load them through the public API using PowerShell 7:
+
+```powershell
+.\scripts\load-synthetic-demo.ps1
+```
+
+Pass `-BaseUrl` when the application uses another address. The loader skips assets that already have the same synthetic external reference, while document uploads reuse existing content through QIP's checksum policy. The source manifest is `samples/machines.json`; generated documents live under `output/pdf/`. Every name, value, scenario, and procedure is invented and must not be applied to real equipment.
