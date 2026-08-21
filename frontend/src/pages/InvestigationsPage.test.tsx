@@ -3,7 +3,7 @@ import { InvestigationsPage } from "./InvestigationsPage";
 
 const incident = {
   id: "incident-1", assetId: "asset-1", title: "Synthetic pump leak", description: "Oil near the seal",
-  severity: "HIGH", status: "REPORTED", occurredAt: "2026-08-20T09:00:00Z",
+  severity: "HIGH", status: "INVESTIGATING", occurredAt: "2026-08-20T09:00:00Z",
   createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z",
 };
 const closedIncident = {
@@ -70,6 +70,9 @@ describe("Investigation workspace", () => {
           closureSummary: body.summary, closedBy: body.closedBy, closedAt: "2026-08-20T10:04:00Z",
           questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:04:00Z" });
       }
+      if (url === "/api/incidents/incident-1/status" && init?.method === "PATCH") {
+        return json({ ...incident, status: "RESOLVED", updatedAt: "2026-08-20T10:05:00Z" });
+      }
       if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", status: closed ? "CLOSED" : "OPEN", closureSummary: closed ? "The confirmed finding closes this case." : null, closedBy: closed ? "wiznick79" : null, closedAt: closed ? "2026-08-20T10:04:00Z" : null, questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
       return new Response(null, { status: 404 });
     });
@@ -121,6 +124,8 @@ describe("Investigation workspace", () => {
     expect(await screen.findByText("Case closure")).toBeInTheDocument();
     expect(screen.getByText("The confirmed finding closes this case.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mark incident resolved" }));
+    expect(await screen.findByText(/Incident status:/)).toHaveTextContent("RESOLVED");
   });
 
   it("separates recent active incidents from searchable history", async () => {

@@ -1,7 +1,7 @@
 # Architecture and MVP
 
-Status: local MVP implemented through milestone 11
-Last updated: 2026-08-20
+Status: local MVP implemented through milestone 12
+Last updated: 2026-08-21
 
 ## 1. Product definition
 
@@ -177,6 +177,10 @@ The first UI increment covers navigation, assets, incidents, document upload, an
 Incidents begin in `REPORTED` state. The normal lifecycle is `REPORTED` to `INVESTIGATING` to `RESOLVED` to `CLOSED`; a resolved incident may return to `INVESTIGATING` when new information requires the case to be reopened. Repeating the current status is idempotent, while a closed incident is terminal. These rules belong to the incident domain rather than the controller or persistence adapter.
 
 Incident search accepts optional asset, status, and occurred-at bounds. `from` is inclusive and `to` is exclusive, which makes adjacent time windows unambiguous. Results are ordered by occurred-at time descending and then opaque incident ID ascending, with bounded pagination.
+
+The milestone 12 web workflow consumes that pagination in 20-record pages and exposes only valid next lifecycle actions. Starting an investigation explicitly moves a reported incident to `INVESTIGATING`; closing the investigation does not silently resolve the incident. Instead, the closed workspace offers a separate human action to move an investigating incident to `RESOLVED`. Resolved incidents may be reopened or explicitly closed from the incident queue.
+
+Primary screens use lightweight hash routes, including an incident identifier for an investigation workspace. This makes case links bookmarkable and restores the selected case after refresh without introducing a routing dependency. The compact investigation picker remains bounded to recent records; the paginated incident queue is the complete browsing surface.
 
 ### Incident observations
 

@@ -3,8 +3,15 @@ import { App } from "./App";
 
 describe("QIP workspace", () => {
   beforeEach(() => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    window.history.replaceState(null, "", "#/assets");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
+      if (url === "/api/incidents/incident-1") return jsonResponse(incident);
+      if (url === "/api/incidents/incident-1/investigations" && init?.method === "POST") {
+        return jsonResponse({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null,
+          closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z",
+          updatedAt: "2026-08-20T10:00:00Z" });
+      }
       if (url.startsWith("/api/assets")) {
         return jsonResponse({ items: [{
           id: "asset-1", name: "Synthetic Press", type: "MACHINE", externalReference: "PRESS-01",
@@ -47,6 +54,15 @@ describe("QIP workspace", () => {
     expect(screen.getByText(/AI findings will remain suggestions/i)).toBeInTheDocument();
   });
 
+  it("opens a bookmarkable incident investigation URL", async () => {
+    window.history.replaceState(null, "", "#/investigations?incident=incident-1");
+    render(<App />);
+
+    expect(await screen.findAllByText("Synthetic vibration")).toHaveLength(2);
+    expect(screen.getByText("No questions yet")).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/investigations?incident=incident-1");
+  });
+
   it("resets the incident form after a successful asynchronous submission", async () => {
     render(<App />);
     expect(await screen.findByText("Synthetic Press")).toBeInTheDocument();
@@ -62,6 +78,12 @@ describe("QIP workspace", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
+
+const incident = {
+  id: "incident-1", assetId: "asset-1", title: "Synthetic vibration", description: "Test incident",
+  severity: "MEDIUM", status: "INVESTIGATING", occurredAt: "2026-08-20T09:00:00Z",
+  createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z",
+};
 
 function jsonResponse(value: unknown) {
   return new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json" } });

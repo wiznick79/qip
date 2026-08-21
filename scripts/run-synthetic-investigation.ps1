@@ -29,6 +29,7 @@ $incidentBody = @{
 } | ConvertTo-Json
 $incident = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/incidents" -ContentType "application/json" -Body $incidentBody
 $investigation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/incidents/$($incident.id)/investigations"
+$incident = Invoke-RestMethod -Method Patch -Uri "$BaseUrl/api/incidents/$($incident.id)/status" -ContentType "application/json" -Body (@{ status = "INVESTIGATING" } | ConvertTo-Json)
 
 $questionBody = @{
     question = "What evidence supports the first inspection, and what remains uncertain?"
@@ -59,11 +60,13 @@ if ($answer.status -eq "GROUNDED") {
         closedBy = "synthetic-demo-investigator"
     } | ConvertTo-Json
     $closedInvestigation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($investigation.id)/closure" -ContentType "application/json" -Body $closureBody
+    $incident = Invoke-RestMethod -Method Patch -Uri "$BaseUrl/api/incidents/$($incident.id)/status" -ContentType "application/json" -Body (@{ status = "RESOLVED" } | ConvertTo-Json)
 }
 
 Write-Host "Synthetic investigation completed."
 Write-Host "Incident: $($incident.id)"
 Write-Host "Investigation: $($investigation.id)"
+Write-Host "Incident status: $($incident.status)"
 Write-Host "Status: $($answer.status)"
 Write-Host "Answer: $($answer.answer)"
 foreach ($citation in $answer.citations) {

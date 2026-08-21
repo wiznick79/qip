@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AssetsPage } from "./pages/AssetsPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { IncidentsPage } from "./pages/IncidentsPage";
@@ -14,12 +14,28 @@ const navigation: { id: View; label: string; number: string }[] = [
 ];
 
 export function App() {
-  const [view, setView] = useState<View>("assets");
+  const [location, setLocation] = useState(readLocation);
+
+  useEffect(() => {
+    const synchronize = () => setLocation(readLocation());
+    window.addEventListener("popstate", synchronize);
+    window.addEventListener("hashchange", synchronize);
+    return () => {
+      window.removeEventListener("popstate", synchronize);
+      window.removeEventListener("hashchange", synchronize);
+    };
+  }, []);
+
+  function navigate(view: View, incidentId?: string) {
+    const query = incidentId ? `?incident=${encodeURIComponent(incidentId)}` : "";
+    window.history.pushState(null, "", `#/${view}${query}`);
+    setLocation({ view, incidentId: incidentId ?? null });
+  }
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#main" aria-label="QIP home">
+        <a className="brand" href="#/assets" aria-label="QIP home" onClick={(event) => { event.preventDefault(); navigate("assets"); }}>
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           <span><strong>QIP</strong><small>Quality Investigation Platform</small></span>
         </a>
@@ -28,17 +44,27 @@ export function App() {
       <div className="workspace">
         <aside className="sidebar">
           <div><p className="nav-label">Workspace</p><nav aria-label="Primary navigation">
-            {navigation.map((item) => <button key={item.id} className={view === item.id ? "active" : ""} onClick={() => setView(item.id)} aria-current={view === item.id ? "page" : undefined}><span>{item.number}</span>{item.label}</button>)}
+            {navigation.map((item) => <button key={item.id} className={location.view === item.id ? "active" : ""} onClick={() => navigate(item.id)} aria-current={location.view === item.id ? "page" : undefined}><span>{item.number}</span>{item.label}</button>)}
           </nav></div>
           <div className="grounding-note"><span aria-hidden="true">◎</span><div><strong>Evidence first</strong><p>AI findings will remain suggestions until a person confirms them.</p></div></div>
         </aside>
         <main id="main">
-          {view === "assets" ? <AssetsPage />
-            : view === "incidents" ? <IncidentsPage />
-              : view === "documents" ? <DocumentsPage />
-                : <InvestigationsPage onViewAllIncidents={() => setView("incidents")} />}
+          {location.view === "assets" ? <AssetsPage />
+            : location.view === "incidents" ? <IncidentsPage onInvestigate={(incidentId) => navigate("investigations", incidentId)} />
+              : location.view === "documents" ? <DocumentsPage />
+                : <InvestigationsPage
+                  initialIncidentId={location.incidentId}
+                  onInvestigationOpened={(incidentId) => navigate("investigations", incidentId)}
+                  onViewAllIncidents={() => navigate("incidents")}
+                />}
         </main>
       </div>
     </div>
   );
+}
+
+function readLocation(): { view: View; incidentId: string | null } {
+  const [path, query = ""] = window.location.hash.replace(/^#\/?/, "").split("?");
+  const view = navigation.some((item) => item.id === path) ? path as View : "assets";
+  return { view, incidentId: new URLSearchParams(query).get("incident") };
 }
