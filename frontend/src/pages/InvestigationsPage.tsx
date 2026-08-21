@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { EmptyState, ErrorNotice, LoadingRows } from "../components/Feedback";
 import type { Asset, FindingStatus, Incident, Investigation, QuestionAnswer, SourceDocument } from "../types";
@@ -7,11 +7,19 @@ import { PageHeading } from "./AssetsPage";
 const ACTIVE_INCIDENT_STATUSES = new Set(["REPORTED", "INVESTIGATING"]);
 const RECENT_INCIDENT_LIMIT = 20;
 
-export function InvestigationsPage({ onViewAllIncidents }: { onViewAllIncidents?: () => void }) {
+export function InvestigationsPage({
+  initialIncidentId,
+  onInvestigationOpened,
+  onViewAllIncidents,
+}: {
+  initialIncidentId?: string | null;
+  onInvestigationOpened?: (incidentId: string) => void;
+  onViewAllIncidents?: () => void;
+}) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [documents, setDocuments] = useState<SourceDocument[]>([]);
-  const [selectedIncidentId, setSelectedIncidentId] = useState("");
+  const [selectedIncidentId, setSelectedIncidentId] = useState(initialIncidentId ?? "");
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [investigation, setInvestigation] = useState<Investigation | null>(null);
   const [draftQuestionId, setDraftQuestionId] = useState<string | null>(null);
@@ -19,7 +27,9 @@ export function InvestigationsPage({ onViewAllIncidents }: { onViewAllIncidents?
   const [opening, setOpening] = useState(false);
   const [asking, setAsking] = useState(false);
   const [findingAction, setFindingAction] = useState<string | null>(null);
+  const [incidentAction, setIncidentAction] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const attemptedRouteIncident = useRef<string | null>(null);
   const indexedDocuments = useMemo(() => documents.filter((document) => document.status === "INDEXED"), [documents]);
   const selectedIncident = incidents.find((incident) => incident.id === selectedIncidentId);
 
@@ -37,17 +47,40 @@ export function InvestigationsPage({ onViewAllIncidents }: { onViewAllIncidents?
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (loading || !initialIncidentId || attemptedRouteIncident.current === initialIncidentId) return;
+    attemptedRouteIncident.current = initialIncidentId;
+    setSelectedIncidentId(initialIncidentId);
+    void openInvestigation(initialIncidentId);
+  }, [initialIncidentId, loading]);
+
   async function refresh(investigationId: string) {
     setInvestigation(await api.getInvestigation(investigationId));
   }
 
-  async function openInvestigation() {
-    if (!selectedIncidentId) return;
+  async function openInvestigation(requestedIncidentId = selectedIncidentId) {
+    if (!requestedIncidentId) return;
     setOpening(true);
     setError(null);
-    try { setInvestigation(await api.createInvestigation(selectedIncidentId)); }
+    try {
+      if (!incidents.some((incident) => incident.id === requestedIncidentId)) {
+        const directIncident = await api.getIncident(requestedIncidentId);
+        setIncidents((current) => [directIncident, ...current]);
+      }
+      setInvestigation(await api.createInvestigation(requestedIncidentId));
+      onInvestigationOpened?.(requestedIncidentId);
+    }
     catch (cause) { setError(message(cause)); }
     finally { setOpening(false); }
+  }
+
+  async function resolveIncident() {
+    if (!selectedIncident || selectedIncident.status !== "INVESTIGATING") return;
+    setIncidentAction(true); setError(null);
+    try {
+      const updated = await api.updateIncidentStatus(selectedIncident.id, "RESOLVED");
+      setIncidents((current) => current.map((incident) => incident.id === updated.id ? updated : incident));
+    } catch (cause) { setError(message(cause)); } finally { setIncidentAction(false); }
   }
 
   async function ask(event: FormEvent<HTMLFormElement>) {
@@ -143,7 +176,7 @@ export function InvestigationsPage({ onViewAllIncidents }: { onViewAllIncidents?
             onViewAll={onViewAllIncidents}
           />
           {selectedIncident ? <div className="incident-context"><strong>{selectedIncident.title}</strong><span>{selectedIncident.severity} · {selectedIncident.status}</span><p>{selectedIncident.description || "No description provided."}</p></div> : null}
-          <button className="primary-button" disabled={!selectedIncidentId || opening} onClick={openInvestigation}>{opening ? "Opening…" : investigation ? "Workspace open" : "Open investigation"}</button>
+          <button className="primary-button" disabled={!selectedIncidentId || opening} onClick={() => openInvestigation()}>{opening ? "Opening…" : investigation ? "Workspace open" : "Open investigation"}</button>
           <fieldset><legend>Document scope <span>Optional</span></legend><p>With none selected, all indexed documents are searched.</p>{indexedDocuments.length === 0 ? <small>No indexed documents available.</small> : indexedDocuments.map((document) => <label className="document-choice" key={document.id}><input type="checkbox" checked={selectedDocuments.has(document.id)} onChange={() => toggleDocument(document.id)} /><span><strong>{document.title}</strong><small>{document.extractedPageCount} page{document.extractedPageCount === 1 ? "" : "s"}</small></span></label>)}</fieldset>
         </div>
       </aside>
@@ -164,7 +197,7 @@ export function InvestigationsPage({ onViewAllIncidents }: { onViewAllIncidents?
                 onPropose={(event) => proposeFinding(event, item.id)}
               />)}
           </div>
-          <FindingsPanel investigation={investigation} busyAction={findingAction} onReview={reviewFinding} onClose={closeInvestigation} />
+          <FindingsPanel investigation={investigation} incident={selectedIncident} busyAction={findingAction} incidentAction={incidentAction} onReview={reviewFinding} onClose={closeInvestigation} onResolveIncident={resolveIncident} />
           {investigation.status === "OPEN" ? <form className="question-form" onSubmit={ask}><label>Question<textarea name="question" required maxLength={1000} rows={3} placeholder="What evidence supports inspecting the hydraulic seal?" /></label><button className="primary-button" disabled={asking || indexedDocuments.length === 0}>{asking ? "Reviewing evidence…" : "Ask with evidence"}</button></form> : null}
         </>}
       </section>
@@ -265,14 +298,20 @@ function AnswerCard({
 
 function FindingsPanel({
   investigation,
+  incident,
   busyAction,
+  incidentAction,
   onReview,
   onClose,
+  onResolveIncident,
 }: {
   investigation: Investigation;
+  incident: Incident | undefined;
   busyAction: string | null;
+  incidentAction: boolean;
   onReview: (event: FormEvent<HTMLFormElement>, findingId: string) => void;
   onClose: (event: FormEvent<HTMLFormElement>) => void;
+  onResolveIncident: () => void;
 }) {
   const hasConfirmedFinding = investigation.findings.some((finding) => finding.status === "CONFIRMED");
   const hasDraftFinding = investigation.findings.some((finding) => finding.status === "DRAFT");
@@ -290,7 +329,7 @@ function FindingsPanel({
         <button className="primary-button" disabled={busyAction === finding.id}>{busyAction === finding.id ? "Recording review…" : "Record review decision"}</button>
       </form> : null}
     </article>)}
-    {investigation.status === "CLOSED" ? <div className="closure-outcome"><span>CLOSED</span><h3>Case closure</h3><p>{investigation.closureSummary}</p><small>Closed by {investigation.closedBy} · {formatDate(investigation.closedAt!)}</small></div>
+    {investigation.status === "CLOSED" ? <><div className="closure-outcome"><span>CLOSED</span><h3>Case closure</h3><p>{investigation.closureSummary}</p><small>Closed by {investigation.closedBy} · {formatDate(investigation.closedAt!)}</small></div>{incident?.status === "INVESTIGATING" ? <div className="incident-resolution"><div><strong>Investigation complete</strong><p>The incident remains separate until a person marks the operational case resolved.</p></div><button className="quiet-button" disabled={incidentAction} onClick={onResolveIncident}>{incidentAction ? "Updating…" : "Mark incident resolved"}</button></div> : incident ? <p className="incident-lifecycle-state">Incident status: <strong>{incident.status}</strong></p> : null}</>
       : hasConfirmedFinding && !hasDraftFinding ? <form className="closure-form" onSubmit={onClose}>
         <div><h3>Close investigation</h3><p>Closure is terminal. Summarize the human-reviewed conclusion without overstating the evidence.</p></div>
         <label>Closure summary<textarea name="summary" required maxLength={4000} rows={3} placeholder="Summarize the confirmed findings, uncertainty, and any follow-up." /></label>

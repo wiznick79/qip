@@ -169,9 +169,9 @@ npm run dev
 
 Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
-The web client covers asset registration, incident reporting/filtering, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. It is not a site-wide unconstrained chat box.
+The web client covers asset registration, paginated incident reporting and lifecycle actions, document upload/status, and a structured investigation workspace. Incident rows link directly to bookmarkable case URLs. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. It is not a site-wide unconstrained chat box.
 
-The repository contains the local MVP implemented through Milestone 11, including explicit finding review and terminal case closure. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+The repository contains the local MVP implemented through Milestone 12, including explicit finding review, terminal investigation closure, paginated case navigation, and deliberate incident lifecycle actions. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
 
 API and operational endpoints are available while QIP is running:
 

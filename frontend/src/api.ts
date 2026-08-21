@@ -46,8 +46,8 @@ export const api = {
   listAssets: () => request<Page<Asset>>("/api/assets?page=0&size=100"),
   createAsset: (input: { name: string; type: AssetType; externalReference: string | null }) =>
     request<Asset>("/api/assets", { method: "POST", body: JSON.stringify(input) }),
-  listIncidents: (status?: IncidentStatus) => {
-    const query = new URLSearchParams({ page: "0", size: "100" });
+  listIncidents: (status?: IncidentStatus, page = 0, size = 100) => {
+    const query = new URLSearchParams({ page: String(page), size: String(size) });
     if (status) query.set("status", status);
     return request<Page<Incident>>(`/api/incidents?${query}`);
   },
@@ -58,6 +58,12 @@ export const api = {
     severity: IncidentSeverity;
     occurredAt: string;
   }) => request<Incident>("/api/incidents", { method: "POST", body: JSON.stringify(input) }),
+  getIncident: (incidentId: string) => request<Incident>(`/api/incidents/${encodeURIComponent(incidentId)}`),
+  updateIncidentStatus: (incidentId: string, status: IncidentStatus) =>
+    request<Incident>(`/api/incidents/${encodeURIComponent(incidentId)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
   listDocuments: () => request<Page<SourceDocument>>("/api/documents?page=0&size=100"),
   uploadDocument: (title: string, file: File) => {
     const form = new FormData();
@@ -66,7 +72,7 @@ export const api = {
     return request<SourceDocument>("/api/documents", { method: "POST", body: form });
   },
   createInvestigation: (incidentId: string) =>
-    request<Investigation>(`/api/incidents/${incidentId}/investigations`, { method: "POST" }),
+    request<Investigation>(`/api/incidents/${encodeURIComponent(incidentId)}/investigations`, { method: "POST" }),
   getInvestigation: (investigationId: string) =>
     request<Investigation>(`/api/investigations/${investigationId}`),
   askQuestion: (investigationId: string, question: string, documentIds: string[]) =>
