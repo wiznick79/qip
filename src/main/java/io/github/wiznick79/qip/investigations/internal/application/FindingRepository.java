@@ -20,5 +20,7 @@ public interface FindingRepository {
 
     List<InvestigationFinding> findAll(UUID investigationId);
 
+    FindingReviewReadiness reviewReadiness(UUID investigationId);
+
     List<FindingReviewEvent> findEvents(UUID findingId);
 }

@@ -13,6 +13,8 @@ public interface InvestigationRepository {
 
     Optional<Investigation> findByIncidentId(UUID incidentId);
 
+    Investigation close(Investigation investigation);
+
     InvestigationQuestion startQuestion(InvestigationQuestion question);
 
     InvestigationQuestion completeQuestion(InvestigationQuestion question, Investigation investigation);

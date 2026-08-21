@@ -1,6 +1,7 @@
 package io.github.wiznick79.qip.investigations.internal.infrastructure.web;
 
 import io.github.wiznick79.qip.investigations.internal.application.AskQuestionCommand;
+import io.github.wiznick79.qip.investigations.internal.application.CloseInvestigationCommand;
 import io.github.wiznick79.qip.investigations.internal.application.FindingManagement;
 import io.github.wiznick79.qip.investigations.internal.application.InvestigationManagement;
 import io.github.wiznick79.qip.investigations.internal.application.ProposeFindingCommand;
@@ -44,6 +45,13 @@ class InvestigationController {
     QuestionAnswerResponse ask(@PathVariable UUID investigationId, @Valid @RequestBody AskQuestionRequest request) {
         return QuestionAnswerResponse.from(
                 investigations.ask(investigationId, new AskQuestionCommand(request.question(), request.documentIds())));
+    }
+
+    @PostMapping("/investigations/{investigationId}/closure")
+    InvestigationResponse close(
+            @PathVariable UUID investigationId, @Valid @RequestBody CloseInvestigationRequest request) {
+        return InvestigationResponse.from(investigations.close(
+                investigationId, new CloseInvestigationCommand(request.summary(), request.closedBy())));
     }
 
     @PostMapping("/investigations/{investigationId}/findings")

@@ -107,6 +107,10 @@ export type Finding = {
 export type Investigation = {
   id: string;
   incidentId: string;
+  status: "OPEN" | "CLOSED";
+  closureSummary: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
   questions: QuestionAnswer[];
   findings: Finding[];
   createdAt: string;

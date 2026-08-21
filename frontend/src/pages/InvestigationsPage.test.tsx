@@ -22,14 +22,16 @@ const groundedQuestion = {
 
 describe("Investigation workspace", () => {
   let findings: Array<Record<string, unknown>>;
+  let closed: boolean;
 
   beforeEach(() => {
     findings = [];
+    closed = false;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.startsWith("/api/incidents?")) return json({ items: [incident], page: 0, size: 100, totalElements: 1 });
       if (url.startsWith("/api/documents?")) return json({ items: [document], page: 0, size: 100, totalElements: 1 });
-      if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
+      if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null, closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
       if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(groundedQuestion);
       if (url === "/api/investigations/investigation-1/findings" && init?.method === "POST") {
         const body = JSON.parse(String(init.body)) as { sourceQuestionId: string; summary: string; proposedBy: string };
@@ -49,7 +51,14 @@ describe("Investigation workspace", () => {
             occurredAt: "2026-08-20T10:03:00Z" }] }];
         return json(findings[0]);
       }
-      if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
+      if (url === "/api/investigations/investigation-1/closure" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as { summary: string; closedBy: string };
+        closed = true;
+        return json({ id: "investigation-1", incidentId: "incident-1", status: "CLOSED",
+          closureSummary: body.summary, closedBy: body.closedBy, closedAt: "2026-08-20T10:04:00Z",
+          questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:04:00Z" });
+      }
+      if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", status: closed ? "CLOSED" : "OPEN", closureSummary: closed ? "The confirmed finding closes this case." : null, closedBy: closed ? "wiznick79" : null, closedAt: closed ? "2026-08-20T10:04:00Z" : null, questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
       return new Response(null, { status: 404 });
     });
   });
@@ -93,6 +102,13 @@ describe("Investigation workspace", () => {
     expect(await screen.findAllByText("CONFIRMED")).toHaveLength(2);
     expect(screen.getByText(/CONFIRMED by wiznick79/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Record review decision" })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Closure summary"), { target: { value: "The confirmed finding closes this case." } });
+    fireEvent.click(screen.getByRole("button", { name: "Close investigation" }));
+
+    expect(await screen.findByText("Case closure")).toBeInTheDocument();
+    expect(screen.getByText("The confirmed finding closes this case.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
   });
 });
 

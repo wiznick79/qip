@@ -89,4 +89,9 @@ export const api = {
     method: "POST",
     body: JSON.stringify(input),
   }),
+  closeInvestigation: (investigationId: string, input: { summary: string; closedBy: string }) =>
+    request<Investigation>(`/api/investigations/${investigationId}/closure`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 };

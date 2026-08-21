@@ -218,6 +218,12 @@ class InvestigationManagementTests {
         }
 
         @Override
+        public Investigation close(Investigation closed) {
+            investigation = closed;
+            return closed;
+        }
+
+        @Override
         public InvestigationQuestion startQuestion(InvestigationQuestion question) {
             questions.add(question);
             return question;
@@ -270,6 +276,11 @@ class InvestigationManagementTests {
         @Override
         public List<InvestigationFinding> findAll(UUID investigationId) {
             return List.of();
+        }
+
+        @Override
+        public FindingReviewReadiness reviewReadiness(UUID investigationId) {
+            return new FindingReviewReadiness(false, false);
         }
 
         @Override

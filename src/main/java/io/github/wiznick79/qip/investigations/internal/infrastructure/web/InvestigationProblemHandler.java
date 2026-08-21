@@ -4,6 +4,7 @@ import io.github.wiznick79.qip.incidents.api.IncidentNotFoundException;
 import io.github.wiznick79.qip.investigations.api.FindingNotFoundException;
 import io.github.wiznick79.qip.investigations.api.InvestigationNotFoundException;
 import io.github.wiznick79.qip.investigations.internal.application.InvalidFindingException;
+import io.github.wiznick79.qip.investigations.internal.application.InvalidInvestigationStateException;
 import io.github.wiznick79.qip.investigations.internal.application.InvalidQuestionException;
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -55,6 +56,14 @@ class InvestigationProblemHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
         problem.setType(URI.create("https://github.com/wiznick79/qip/problems/invalid-finding"));
         problem.setTitle("Finding action rejected");
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidInvestigationStateException.class)
+    ProblemDetail invalidInvestigationState(InvalidInvestigationStateException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setType(URI.create("https://github.com/wiznick79/qip/problems/invalid-investigation-state"));
+        problem.setTitle("Investigation action rejected");
         return problem;
     }
 

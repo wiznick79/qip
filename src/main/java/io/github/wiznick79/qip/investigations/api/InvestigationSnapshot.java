@@ -7,6 +7,10 @@ import java.util.UUID;
 public record InvestigationSnapshot(
         UUID id,
         UUID incidentId,
+        InvestigationStatus status,
+        String closureSummary,
+        String closedBy,
+        Instant closedAt,
         List<QuestionAnswerSnapshot> questions,
         List<FindingSnapshot> findings,
         Instant createdAt,

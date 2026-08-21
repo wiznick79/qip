@@ -38,6 +38,7 @@ $answer = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($in
 
 $finding = $null
 $reviewedFinding = $null
+$closedInvestigation = $null
 if ($answer.status -eq "GROUNDED") {
     $findingBody = @{
         sourceQuestionId = $answer.id
@@ -52,6 +53,12 @@ if ($answer.status -eq "GROUNDED") {
         rationale = "The synthetic source citation and recorded incident conditions support retaining this inspection finding."
     } | ConvertTo-Json
     $reviewedFinding = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($investigation.id)/findings/$($finding.id)/reviews" -ContentType "application/json" -Body $reviewBody
+
+    $closureBody = @{
+        summary = "The synthetic return-filter inspection finding is confirmed. Other contributing factors remain uncertain and require normal human follow-up."
+        closedBy = "synthetic-demo-investigator"
+    } | ConvertTo-Json
+    $closedInvestigation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/investigations/$($investigation.id)/closure" -ContentType "application/json" -Body $closureBody
 }
 
 Write-Host "Synthetic investigation completed."
@@ -65,4 +72,8 @@ foreach ($citation in $answer.citations) {
 if ($null -ne $reviewedFinding) {
     Write-Host "Finding: $($reviewedFinding.status) by $($reviewedFinding.reviewedBy) [$($reviewedFinding.id)]"
     Write-Host "Review events: $($reviewedFinding.events.Count)"
+}
+if ($null -ne $closedInvestigation) {
+    Write-Host "Investigation status: $($closedInvestigation.status) by $($closedInvestigation.closedBy)"
+    Write-Host "Closure summary: $($closedInvestigation.closureSummary)"
 }

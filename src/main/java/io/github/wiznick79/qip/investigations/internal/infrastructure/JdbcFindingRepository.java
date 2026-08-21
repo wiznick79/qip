@@ -3,6 +3,7 @@ package io.github.wiznick79.qip.investigations.internal.infrastructure;
 import io.github.wiznick79.qip.investigations.api.FindingEventType;
 import io.github.wiznick79.qip.investigations.api.FindingStatus;
 import io.github.wiznick79.qip.investigations.internal.application.FindingRepository;
+import io.github.wiznick79.qip.investigations.internal.application.FindingReviewReadiness;
 import io.github.wiznick79.qip.investigations.internal.application.InvalidFindingException;
 import io.github.wiznick79.qip.investigations.internal.domain.FindingReviewEvent;
 import io.github.wiznick79.qip.investigations.internal.domain.Investigation;
@@ -120,6 +121,22 @@ class JdbcFindingRepository implements FindingRepository {
                 .param("investigationId", investigationId)
                 .query(JdbcFindingRepository::mapFinding)
                 .list();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FindingReviewReadiness reviewReadiness(UUID investigationId) {
+        return jdbc.sql("""
+                        SELECT
+                            COALESCE(bool_or(status = 'DRAFT'), false) AS has_draft,
+                            COALESCE(bool_or(status = 'CONFIRMED'), false) AS has_confirmed
+                        FROM investigation_findings
+                        WHERE investigation_id = :investigationId
+                        """)
+                .param("investigationId", investigationId)
+                .query((result, rowNumber) ->
+                        new FindingReviewReadiness(result.getBoolean("has_draft"), result.getBoolean("has_confirmed")))
+                .single();
     }
 
     @Override

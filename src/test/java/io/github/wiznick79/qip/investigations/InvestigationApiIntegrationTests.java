@@ -60,7 +60,7 @@ class InvestigationApiIntegrationTests {
     }
 
     @Test
-    void createsAnInvestigationAndPersistsAGroundedQuestionWithCitations() throws Exception {
+    void completesAGroundedFindingReviewAndClosesTheInvestigation() throws Exception {
         String assetId = createAsset();
         String incidentId = createIncident(assetId);
         String documentId = uploadDocument();
@@ -68,6 +68,7 @@ class InvestigationApiIntegrationTests {
         String investigationResponse = mockMvc.perform(post("/api/incidents/{incidentId}/investigations", incidentId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.incidentId").value(incidentId))
+                .andExpect(jsonPath("$.status").value("OPEN"))
                 .andExpect(jsonPath("$.questions").isEmpty())
                 .andReturn()
                 .getResponse()
@@ -116,6 +117,18 @@ class InvestigationApiIntegrationTests {
                 .getContentAsString();
         String findingId = JsonPath.read(findingResponse, "$.id");
 
+        mockMvc.perform(post("/api/investigations/{investigationId}/closure", investigationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "summary": "Premature closure attempt.",
+                                  "closedBy": "wiznick79"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(
+                        jsonPath("$.detail").value("All draft findings must be confirmed or rejected before closure"));
+
         mockMvc.perform(post(
                                 "/api/investigations/{investigationId}/findings/{findingId}/reviews",
                                 investigationId,
@@ -148,8 +161,35 @@ class InvestigationApiIntegrationTests {
                                 """))
                 .andExpect(status().isConflict());
 
+        mockMvc.perform(post("/api/investigations/{investigationId}/closure", investigationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "summary": "The confirmed seal-inspection finding completes this synthetic case.",
+                                  "closedBy": "wiznick79"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closureSummary")
+                        .value("The confirmed seal-inspection finding completes this synthetic case."))
+                .andExpect(jsonPath("$.closedBy").value("wiznick79"))
+                .andExpect(jsonPath("$.closedAt").isNotEmpty());
+
+        mockMvc.perform(post("/api/investigations/{investigationId}/questions", investigationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "question": "Can a closed case accept another question?",
+                                  "documentIds": []
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("The investigation is closed and cannot be changed"));
+
         mockMvc.perform(get("/api/investigations/{investigationId}", investigationId))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
                 .andExpect(jsonPath("$.questions.length()").value(1))
                 .andExpect(jsonPath("$.questions[0].status").value("GROUNDED"))
                 .andExpect(jsonPath("$.findings.length()").value(1))
@@ -203,6 +243,17 @@ class InvestigationApiIntegrationTests {
                                 """.formatted(questionId)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Only a grounded answer with citations can become a finding"));
+
+        mockMvc.perform(post("/api/investigations/{investigationId}/closure", investigationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "summary": "Unsupported closure.",
+                                  "closedBy": "wiznick79"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("At least one confirmed finding is required before closure"));
     }
 
     @Test

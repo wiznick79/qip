@@ -19,7 +19,7 @@ In another PowerShell terminal:
 .\scripts\run-synthetic-investigation.ps1 -ReindexDocuments
 ```
 
-The script idempotently loads three assets and manuals, verifies that the Atlas manual is indexed, creates a synthetic incident and investigation, and asks one document-scoped question. When the answer is grounded, it explicitly proposes a draft finding and records a separate synthetic human review before printing the answer, citation, finding status, and audit-event count. Each run intentionally creates a new incident so its provenance and timestamps remain honest.
+The script idempotently loads three assets and manuals, verifies that the Atlas manual is indexed, creates a synthetic incident and investigation, and asks one document-scoped question. When the answer is grounded, it explicitly proposes a draft finding, records a separate synthetic human review, and closes the investigation with a human-authored summary. It then prints the answer, citation, finding status, audit-event count, and closure record. Each run intentionally creates a new incident so its provenance and timestamps remain honest.
 
 After the first Ollama re-index, omit `-ReindexDocuments` on later runs.
 
@@ -42,4 +42,5 @@ The generated Spring Modulith diagrams and canvases are written to `target/sprin
 - Malformed model output, invented citations, and provider failures become controlled technical failures.
 - Only grounded answers with citations can be proposed as draft findings.
 - Findings remain unconfirmed until a separate reviewer records a rationale; reviewed findings are immutable.
+- Closure requires no unresolved drafts and at least one confirmed finding; closed investigations are immutable.
 - Uploaded document and incident text are explicitly treated as untrusted data.

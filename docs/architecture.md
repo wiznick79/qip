@@ -1,6 +1,6 @@
 # Architecture and MVP
 
-Status: local MVP implemented through milestone 10; milestone 11 human-review slice in progress
+Status: local MVP implemented through milestone 11
 Last updated: 2026-08-20
 
 ## 1. Product definition
@@ -78,7 +78,7 @@ Identifiers are application-owned opaque IDs (prefer UUIDs). Cross-module refere
 | `Incident` | Reported abnormal condition: ID, title, description, severity, status, occurred-at time, asset ID, created-at time. |
 | `Observation` | Human-authored fact or note appended to an incident: ID, incident ID, text, author reference, observed-at time. |
 | `EvidenceItem` | A source-attributed item considered during investigation: ID, incident ID, type, summary, source reference, event time, provenance. It is not automatically a proven cause. |
-| `Investigation` | The analysis case for an incident: ID, incident ID, status, question/answer history. The MVP may enforce one open investigation per incident without assuming that is permanent. |
+| `Investigation` | The analysis case for an incident: ID, incident ID, status, question/answer history, findings, and immutable human-authored closure details. The MVP enforces one investigation per incident without assuming that is permanent. |
 | `SourceDocument` | Uploaded knowledge source: ID, title, media type, checksum, storage reference, ingestion status, failure reason, metadata. |
 | `KnowledgePassage` | Extracted and indexed segment: ID, document ID, text, page/section locator, sequence, embedding. This is an internal knowledge concept, not exposed as a writable public resource. |
 | `Question` | A user's request within an investigation: ID, investigation ID, text, selected document IDs, asked-at time. |
@@ -96,6 +96,7 @@ Identifiers are application-owned opaque IDs (prefer UUIDs). Cross-module refere
 - Deleting or replacing a document invalidates its passages; stale passages must never remain retrievable.
 - Model output is never persisted as human evidence without an explicit user action and provenance label.
 - Only a grounded answer with validated citations can source a finding; review is terminal and append-only audit events preserve proposal and decision provenance.
+- Closing an investigation requires no unresolved drafts and at least one confirmed finding; closure is terminal and blocks further questions or finding actions.
 
 ## 4. Module boundaries
 
@@ -229,7 +230,9 @@ The milestone 10 hardening slice exposes only Actuator health with hidden detail
 
 The first milestone 11 slice adds an explicit boundary between generated decision support and accountable conclusions. A caller may propose one immutable draft finding from a `GROUNDED` question with validated citations, supplying a human-edited summary and proposer reference. Insufficient, failed, and still-processing answers are ineligible.
 
-A draft has one terminal transition to `CONFIRMED` or `REJECTED`. Review requires a reviewer reference and rationale, and both proposal and review append immutable audit events. Repeated review and silent editing are rejected. Actor references remain caller-supplied provenance labels until authentication exists; the UI states this limitation. ADR 0008 records the decision. Investigation closure and a human-authored closure summary remain the next Milestone 11 increment.
+A draft has one terminal transition to `CONFIRMED` or `REJECTED`. Review requires a reviewer reference and rationale, and both proposal and review append immutable audit events. Repeated review and silent editing are rejected. Actor references remain caller-supplied provenance labels until authentication exists; the UI states this limitation. ADR 0008 records the decision.
+
+An investigation closes only after all drafts are resolved and at least one finding is confirmed. The closer supplies a bounded case-level summary and provenance reference; the application records the closure time. Closure is terminal, so new questions, finding actions, and repeated closure are rejected. ADR 0009 records this lifecycle decision.
 
 ### AI concepts used in the MVP
 
@@ -357,6 +360,7 @@ POST   /api/investigations/{investigationId}/questions
 GET    /api/investigations/{investigationId}
 POST   /api/investigations/{investigationId}/findings
 POST   /api/investigations/{investigationId}/findings/{findingId}/reviews
+POST   /api/investigations/{investigationId}/closure
 ```
 
 The question response includes answer status, answer text, citations, and model/retrieval metadata suitable for debugging without exposing secrets or hidden prompts.

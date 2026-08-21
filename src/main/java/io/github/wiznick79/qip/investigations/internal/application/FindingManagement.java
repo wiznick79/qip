@@ -34,6 +34,7 @@ public class FindingManagement {
 
     public FindingSnapshot propose(UUID investigationId, ProposeFindingCommand command) {
         Investigation investigation = findInvestigation(investigationId);
+        investigation.requireOpen();
         var question = investigations
                 .findQuestion(investigationId, command.sourceQuestionId())
                 .orElseThrow(
@@ -64,6 +65,7 @@ public class FindingManagement {
 
     public FindingSnapshot review(UUID investigationId, UUID findingId, ReviewFindingCommand command) {
         Investigation investigation = findInvestigation(investigationId);
+        investigation.requireOpen();
         InvestigationFinding current = findings.findById(investigationId, findingId)
                 .orElseThrow(() -> new FindingNotFoundException(findingId));
         Instant now = Instant.now(clock);
@@ -81,6 +83,10 @@ public class FindingManagement {
 
     List<FindingSnapshot> list(UUID investigationId) {
         return findings.findAll(investigationId).stream().map(this::snapshot).toList();
+    }
+
+    FindingReviewReadiness reviewReadiness(UUID investigationId) {
+        return findings.reviewReadiness(investigationId);
     }
 
     private Investigation findInvestigation(UUID investigationId) {
@@ -111,6 +117,6 @@ public class FindingManagement {
     }
 
     private static Investigation updated(Investigation investigation, Instant updatedAt) {
-        return new Investigation(investigation.id(), investigation.incidentId(), investigation.createdAt(), updatedAt);
+        return investigation.touch(updatedAt);
     }
 }
