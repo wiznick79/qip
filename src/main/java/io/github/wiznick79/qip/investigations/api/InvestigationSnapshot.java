@@ -5,8 +5,18 @@ import java.util.List;
 import java.util.UUID;
 
 public record InvestigationSnapshot(
-        UUID id, UUID incidentId, List<QuestionAnswerSnapshot> questions, Instant createdAt, Instant updatedAt) {
+        UUID id,
+        UUID incidentId,
+        InvestigationStatus status,
+        String closureSummary,
+        String closedBy,
+        Instant closedAt,
+        List<QuestionAnswerSnapshot> questions,
+        List<FindingSnapshot> findings,
+        Instant createdAt,
+        Instant updatedAt) {
     public InvestigationSnapshot {
         questions = List.copyOf(questions);
+        findings = List.copyOf(findings);
     }
 }

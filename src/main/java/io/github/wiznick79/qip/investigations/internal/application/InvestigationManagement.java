@@ -6,6 +6,7 @@ import io.github.wiznick79.qip.investigations.api.AnswerStatus;
 import io.github.wiznick79.qip.investigations.api.CitationSnapshot;
 import io.github.wiznick79.qip.investigations.api.InvestigationNotFoundException;
 import io.github.wiznick79.qip.investigations.api.InvestigationSnapshot;
+import io.github.wiznick79.qip.investigations.api.InvestigationStatus;
 import io.github.wiznick79.qip.investigations.api.QuestionAnswerSnapshot;
 import io.github.wiznick79.qip.investigations.internal.domain.Investigation;
 import io.github.wiznick79.qip.investigations.internal.domain.InvestigationQuestion;
@@ -34,6 +35,7 @@ public class InvestigationManagement {
     private final KnowledgeSearch knowledge;
     private final GroundedPromptBuilder prompts;
     private final AnswerGenerator answers;
+    private final FindingManagement findings;
     private final InvestigationIdGenerator investigationIds;
     private final QuestionIdGenerator questionIds;
     private final Clock clock;
@@ -46,6 +48,7 @@ public class InvestigationManagement {
             KnowledgeSearch knowledge,
             GroundedPromptBuilder prompts,
             AnswerGenerator answers,
+            FindingManagement findings,
             InvestigationIdGenerator investigationIds,
             QuestionIdGenerator questionIds,
             Clock clock,
@@ -62,6 +65,7 @@ public class InvestigationManagement {
         this.knowledge = knowledge;
         this.prompts = prompts;
         this.answers = answers;
+        this.findings = findings;
         this.investigationIds = investigationIds;
         this.questionIds = questionIds;
         this.clock = clock;
@@ -72,8 +76,8 @@ public class InvestigationManagement {
     public InvestigationSnapshot create(UUID incidentId) {
         incidents.getIncident(incidentId);
         Instant now = Instant.now(clock);
-        Investigation investigation =
-                repository.createIfAbsent(new Investigation(investigationIds.nextId(), incidentId, now, now));
+        Investigation investigation = repository.createIfAbsent(new Investigation(
+                investigationIds.nextId(), incidentId, InvestigationStatus.OPEN, null, null, null, now, now));
         return snapshot(investigation);
     }
 
@@ -83,6 +87,7 @@ public class InvestigationManagement {
 
     public QuestionAnswerSnapshot ask(UUID investigationId, AskQuestionCommand command) {
         Investigation investigation = find(investigationId);
+        investigation.requireOpen();
         IncidentSnapshot incident = incidents.getIncident(investigation.incidentId());
         Instant askedAt = Instant.now(clock);
         InvestigationQuestion processing = repository.startQuestion(new InvestigationQuestion(
@@ -124,9 +129,23 @@ public class InvestigationManagement {
         } catch (RuntimeException exception) {
             completed = technicalFailure(processing, exception, retrievedCount);
         }
-        Investigation updated = new Investigation(
-                investigation.id(), investigation.incidentId(), investigation.createdAt(), completed.completedAt());
+        Investigation updated = investigation.touch(completed.completedAt());
         return snapshot(repository.completeQuestion(completed, updated));
+    }
+
+    public InvestigationSnapshot close(UUID investigationId, CloseInvestigationCommand command) {
+        Investigation investigation = find(investigationId);
+        investigation.requireOpen();
+        FindingReviewReadiness readiness = findings.reviewReadiness(investigationId);
+        if (readiness.hasDraft()) {
+            throw new InvalidInvestigationStateException(
+                    "All draft findings must be confirmed or rejected before closure");
+        }
+        if (!readiness.hasConfirmed()) {
+            throw new InvalidInvestigationStateException("At least one confirmed finding is required before closure");
+        }
+        Investigation closed = investigation.close(command.summary(), command.closedBy(), Instant.now(clock));
+        return snapshot(repository.close(closed));
     }
 
     private InvestigationQuestion validateAnswer(
@@ -231,9 +250,14 @@ public class InvestigationManagement {
         return new InvestigationSnapshot(
                 investigation.id(),
                 investigation.incidentId(),
+                investigation.status(),
+                investigation.closureSummary(),
+                investigation.closedBy(),
+                investigation.closedAt(),
                 repository.findQuestions(investigation.id()).stream()
                         .map(InvestigationManagement::snapshot)
                         .toList(),
+                findings.list(investigation.id()),
                 investigation.createdAt(),
                 investigation.updatedAt());
     }

@@ -7,7 +7,9 @@ import io.github.wiznick79.qip.incidents.api.IncidentSeverity;
 import io.github.wiznick79.qip.incidents.api.IncidentSnapshot;
 import io.github.wiznick79.qip.incidents.api.IncidentStatus;
 import io.github.wiznick79.qip.investigations.api.AnswerStatus;
+import io.github.wiznick79.qip.investigations.internal.domain.FindingReviewEvent;
 import io.github.wiznick79.qip.investigations.internal.domain.Investigation;
+import io.github.wiznick79.qip.investigations.internal.domain.InvestigationFinding;
 import io.github.wiznick79.qip.investigations.internal.domain.InvestigationQuestion;
 import io.github.wiznick79.qip.knowledge.api.KnowledgeSearch;
 import io.github.wiznick79.qip.knowledge.api.RetrievedPassage;
@@ -134,6 +136,21 @@ class InvestigationManagementTests {
                 knowledge,
                 new GroundedPromptBuilder(2_000),
                 answers,
+                new FindingManagement(
+                        repository,
+                        new EmptyFindingRepository(),
+                        new FindingIdGenerator() {
+                            @Override
+                            public UUID nextFindingId() {
+                                return UUID.randomUUID();
+                            }
+
+                            @Override
+                            public UUID nextEventId() {
+                                return UUID.randomUUID();
+                            }
+                        },
+                        Clock.fixed(NOW, ZoneOffset.UTC)),
                 () -> INVESTIGATION_ID,
                 () -> QUESTION_ID,
                 Clock.fixed(NOW, ZoneOffset.UTC),
@@ -201,6 +218,12 @@ class InvestigationManagementTests {
         }
 
         @Override
+        public Investigation close(Investigation closed) {
+            investigation = closed;
+            return closed;
+        }
+
+        @Override
         public InvestigationQuestion startQuestion(InvestigationQuestion question) {
             questions.add(question);
             return question;
@@ -214,8 +237,55 @@ class InvestigationManagementTests {
         }
 
         @Override
+        public Optional<InvestigationQuestion> findQuestion(UUID investigationId, UUID questionId) {
+            return questions.stream()
+                    .filter(question -> question.investigationId().equals(investigationId))
+                    .filter(question -> question.id().equals(questionId))
+                    .findFirst();
+        }
+
+        @Override
         public List<InvestigationQuestion> findQuestions(UUID investigationId) {
             return List.copyOf(questions);
+        }
+    }
+
+    private static final class EmptyFindingRepository implements FindingRepository {
+        @Override
+        public InvestigationFinding create(
+                InvestigationFinding finding, FindingReviewEvent event, Investigation updatedInvestigation) {
+            return finding;
+        }
+
+        @Override
+        public InvestigationFinding review(
+                InvestigationFinding finding, FindingReviewEvent event, Investigation updatedInvestigation) {
+            return finding;
+        }
+
+        @Override
+        public Optional<InvestigationFinding> findById(UUID investigationId, UUID findingId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<InvestigationFinding> findBySourceQuestionId(UUID sourceQuestionId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<InvestigationFinding> findAll(UUID investigationId) {
+            return List.of();
+        }
+
+        @Override
+        public FindingReviewReadiness reviewReadiness(UUID investigationId) {
+            return new FindingReviewReadiness(false, false);
+        }
+
+        @Override
+        public List<FindingReviewEvent> findEvents(UUID findingId) {
+            return List.of();
         }
     }
 }

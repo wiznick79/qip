@@ -13,9 +13,13 @@ public interface InvestigationRepository {
 
     Optional<Investigation> findByIncidentId(UUID incidentId);
 
+    Investigation close(Investigation investigation);
+
     InvestigationQuestion startQuestion(InvestigationQuestion question);
 
     InvestigationQuestion completeQuestion(InvestigationQuestion question, Investigation investigation);
+
+    Optional<InvestigationQuestion> findQuestion(UUID investigationId, UUID questionId);
 
     List<InvestigationQuestion> findQuestions(UUID investigationId);
 }

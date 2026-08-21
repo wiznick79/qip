@@ -6,6 +6,17 @@ const incident = {
   severity: "HIGH", status: "REPORTED", occurredAt: "2026-08-20T09:00:00Z",
   createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z",
 };
+const closedIncident = {
+  ...incident,
+  id: "incident-closed",
+  title: "Resolved conveyor stop",
+  status: "CLOSED",
+  occurredAt: "2026-08-19T09:00:00Z",
+};
+const asset = {
+  id: "asset-1", name: "Synthetic pump", type: "MACHINE", externalReference: "SYN-PUMP-1",
+  createdAt: "2026-08-20T08:00:00Z",
+};
 const document = {
   id: "document-1", title: "Synthetic pump manual", originalFilename: "pump.txt", mediaType: "text/plain",
   sizeBytes: 120, checksumSha256: "a".repeat(64), status: "INDEXED", failureReason: null,
@@ -21,14 +32,45 @@ const groundedQuestion = {
 };
 
 describe("Investigation workspace", () => {
+  let findings: Array<Record<string, unknown>>;
+  let closed: boolean;
+
   beforeEach(() => {
+    findings = [];
+    closed = false;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
-      if (url.startsWith("/api/incidents?")) return json({ items: [incident], page: 0, size: 100, totalElements: 1 });
+      if (url.startsWith("/api/assets?")) return json({ items: [asset], page: 0, size: 100, totalElements: 1 });
+      if (url.startsWith("/api/incidents?")) return json({ items: [incident, closedIncident], page: 0, size: 100, totalElements: 2 });
       if (url.startsWith("/api/documents?")) return json({ items: [document], page: 0, size: 100, totalElements: 1 });
-      if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", questions: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
+      if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null, closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
       if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(groundedQuestion);
-      if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", questions: [groundedQuestion], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
+      if (url === "/api/investigations/investigation-1/findings" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as { sourceQuestionId: string; summary: string; proposedBy: string };
+        findings = [{ id: "finding-1", sourceQuestionId: body.sourceQuestionId, summary: body.summary,
+          status: "DRAFT", proposedBy: body.proposedBy, proposedAt: "2026-08-20T10:02:00Z",
+          reviewedBy: null, reviewRationale: null, reviewedAt: null,
+          events: [{ id: "event-1", type: "PROPOSED", actorReference: body.proposedBy,
+            rationale: null, occurredAt: "2026-08-20T10:02:00Z" }] }];
+        return json(findings[0]);
+      }
+      if (url === "/api/investigations/investigation-1/findings/finding-1/reviews" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as { decision: string; reviewerReference: string; rationale: string };
+        findings = [{ ...findings[0], status: body.decision, reviewedBy: body.reviewerReference,
+          reviewRationale: body.rationale, reviewedAt: "2026-08-20T10:03:00Z",
+          events: [...(findings[0].events as unknown[]), { id: "event-2", type: body.decision,
+            actorReference: body.reviewerReference, rationale: body.rationale,
+            occurredAt: "2026-08-20T10:03:00Z" }] }];
+        return json(findings[0]);
+      }
+      if (url === "/api/investigations/investigation-1/closure" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as { summary: string; closedBy: string };
+        closed = true;
+        return json({ id: "investigation-1", incidentId: "incident-1", status: "CLOSED",
+          closureSummary: body.summary, closedBy: body.closedBy, closedAt: "2026-08-20T10:04:00Z",
+          questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:04:00Z" });
+      }
+      if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", status: closed ? "CLOSED" : "OPEN", closureSummary: closed ? "The confirmed finding closes this case." : null, closedBy: closed ? "wiznick79" : null, closedAt: closed ? "2026-08-20T10:04:00Z" : null, questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
       return new Response(null, { status: 404 });
     });
   });
@@ -37,7 +79,7 @@ describe("Investigation workspace", () => {
 
   it("opens a case, asks against selected documents, and renders passage provenance", async () => {
     render(<InvestigationsPage />);
-    fireEvent.change(await screen.findByLabelText("Incident"), { target: { value: "incident-1" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
     fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
     expect(await screen.findByText("No questions yet")).toBeInTheDocument();
 
@@ -50,6 +92,51 @@ describe("Investigation workspace", () => {
     fireEvent.click(screen.getByText(/Synthetic pump manual · page 1/));
     expect(screen.getByText("Passage 1 · relevance 0.880")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Question")).toHaveValue(""));
+  });
+
+  it("requires explicit proposal and review before a finding is confirmed", async () => {
+    render(<InvestigationsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
+    await screen.findByText("No questions yet");
+    fireEvent.change(screen.getByLabelText("Question"), { target: { value: "What should be inspected?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask with evidence" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Propose as finding" }));
+    expect(screen.getByLabelText("Finding summary")).toHaveValue("Inspect the synthetic hydraulic seal.");
+    fireEvent.click(screen.getByRole("button", { name: "Create draft finding" }));
+
+    expect(await screen.findByText("DRAFT")).toBeInTheDocument();
+    expect(screen.getByText(/Audit history · 1 event/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "The cited source supports inspection." } });
+    fireEvent.click(screen.getByRole("button", { name: "Record review decision" }));
+
+    expect(await screen.findAllByText("CONFIRMED")).toHaveLength(2);
+    expect(screen.getByText(/CONFIRMED by wiznick79/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Record review decision" })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Closure summary"), { target: { value: "The confirmed finding closes this case." } });
+    fireEvent.click(screen.getByRole("button", { name: "Close investigation" }));
+
+    expect(await screen.findByText("Case closure")).toBeInTheDocument();
+    expect(screen.getByText("The confirmed finding closes this case.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
+  });
+
+  it("separates recent active incidents from searchable history", async () => {
+    const viewAll = vi.fn();
+    render(<InvestigationsPage onViewAllIncidents={viewAll} />);
+
+    expect(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ })).toBeInTheDocument();
+    expect(screen.queryByText("Resolved conveyor stop")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.getByText("Resolved conveyor stop")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search incidents" }), { target: { value: "missing" } });
+    expect(screen.getByText("No matching history incidents.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View all incidents →" }));
+    expect(viewAll).toHaveBeenCalledOnce();
   });
 });
 

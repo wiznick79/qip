@@ -80,10 +80,39 @@ export type QuestionAnswer = {
   completedAt: string | null;
 };
 
+export type FindingStatus = "DRAFT" | "CONFIRMED" | "REJECTED";
+export type FindingEventType = "PROPOSED" | "CONFIRMED" | "REJECTED";
+
+export type FindingReviewEvent = {
+  id: string;
+  type: FindingEventType;
+  actorReference: string;
+  rationale: string | null;
+  occurredAt: string;
+};
+
+export type Finding = {
+  id: string;
+  sourceQuestionId: string;
+  summary: string;
+  status: FindingStatus;
+  proposedBy: string;
+  proposedAt: string;
+  reviewedBy: string | null;
+  reviewRationale: string | null;
+  reviewedAt: string | null;
+  events: FindingReviewEvent[];
+};
+
 export type Investigation = {
   id: string;
   incidentId: string;
+  status: "OPEN" | "CLOSED";
+  closureSummary: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
   questions: QuestionAnswer[];
+  findings: Finding[];
   createdAt: string;
   updatedAt: string;
 };

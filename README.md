@@ -15,6 +15,8 @@ Start with:
 - [ADR 0005: grounded answers and citation validation](docs/adr/0005-grounded-answer-orchestration-and-citation-validation.md)
 - [ADR 0006: local Ollama model provider](docs/adr/0006-use-ollama-for-local-model-inference.md)
 - [ADR 0007: operational API and generated module documentation](docs/adr/0007-use-actuator-springdoc-and-generated-module-docs.md)
+- [ADR 0008: explicit human review for findings](docs/adr/0008-require-explicit-human-review-for-findings.md)
+- [ADR 0009: investigation closure after human review](docs/adr/0009-close-investigations-only-after-human-review.md)
 - [Local MVP demonstration](docs/demo.md)
 
 ## Development
@@ -113,9 +115,16 @@ The grounded investigation slice additionally provides:
 POST /api/incidents/{incidentId}/investigations
 GET  /api/investigations/{investigationId}
 POST /api/investigations/{investigationId}/questions
+POST /api/investigations/{investigationId}/findings
+POST /api/investigations/{investigationId}/findings/{findingId}/reviews
+POST /api/investigations/{investigationId}/closure
 ```
 
 Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. The default answer adapter is deterministic and offline. The opt-in `ollama` profile supplies local `EmbeddingModel` and `ChatModel` beans without API keys.
+
+A grounded answer with validated citations can be explicitly proposed as a `DRAFT` finding. A separate review action records `CONFIRMED` or `REJECTED`, the reviewer reference, a mandatory rationale, and an append-only audit event. Insufficient or failed answers cannot become findings, and reviewed findings cannot be overwritten. Actor references remain caller-supplied provenance labels until authentication is introduced.
+
+An investigation can be closed only after every draft is resolved and at least one finding is confirmed. Closure records an immutable human-authored summary, closer reference, and application timestamp. A closed investigation rejects new questions, finding actions, and repeated closure.
 
 ## Local Ollama models
 
@@ -160,9 +169,9 @@ npm run dev
 
 Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
-The web client covers asset registration, incident reporting/filtering, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, and exposes citation passages. It is not a site-wide unconstrained chat box.
+The web client covers asset registration, incident reporting/filtering, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. It is not a site-wide unconstrained chat box.
 
-The repository contains the Milestone 10 hardened local MVP. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+The repository contains the local MVP implemented through Milestone 11, including explicit finding review and terminal case closure. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
 
 API and operational endpoints are available while QIP is running:
 

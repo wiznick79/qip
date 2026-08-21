@@ -2,6 +2,8 @@ package io.github.wiznick79.qip.investigations.internal.infrastructure;
 
 import io.github.wiznick79.qip.investigations.api.AnswerStatus;
 import io.github.wiznick79.qip.investigations.api.CitationSnapshot;
+import io.github.wiznick79.qip.investigations.api.InvestigationStatus;
+import io.github.wiznick79.qip.investigations.internal.application.InvalidInvestigationStateException;
 import io.github.wiznick79.qip.investigations.internal.application.InvestigationRepository;
 import io.github.wiznick79.qip.investigations.internal.domain.Investigation;
 import io.github.wiznick79.qip.investigations.internal.domain.InvestigationQuestion;
@@ -20,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 class JdbcInvestigationRepository implements InvestigationRepository {
 
-    private static final String INVESTIGATION_COLUMNS = "id, incident_id, created_at, updated_at";
+    private static final String INVESTIGATION_COLUMNS =
+            "id, incident_id, status, closure_summary, closed_by, closed_at, created_at, updated_at";
     private static final String QUESTION_COLUMNS = """
             id, investigation_id, question_text, selected_document_ids, answer_status, answer_text,
             model_id, prompt_version, retrieved_passage_count, failure_reason, asked_at, completed_at
@@ -64,6 +67,31 @@ class JdbcInvestigationRepository implements InvestigationRepository {
                 .param("incidentId", incidentId)
                 .query(JdbcInvestigationRepository::mapInvestigation)
                 .optional();
+    }
+
+    @Override
+    @Transactional
+    public Investigation close(Investigation investigation) {
+        int changed = jdbc.sql("""
+                        UPDATE investigations SET
+                            status = :status,
+                            closure_summary = :summary,
+                            closed_by = :closedBy,
+                            closed_at = :closedAt,
+                            updated_at = :updatedAt
+                        WHERE id = :id AND status = 'OPEN'
+                        """)
+                .param("status", investigation.status().name())
+                .param("summary", investigation.closureSummary())
+                .param("closedBy", investigation.closedBy())
+                .param("closedAt", Timestamp.from(investigation.closedAt()))
+                .param("updatedAt", Timestamp.from(investigation.updatedAt()))
+                .param("id", investigation.id())
+                .update();
+        if (changed != 1) {
+            throw new InvalidInvestigationStateException("The investigation is closed and cannot be changed");
+        }
+        return investigation;
     }
 
     @Override
@@ -142,6 +170,19 @@ class JdbcInvestigationRepository implements InvestigationRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<InvestigationQuestion> findQuestion(UUID investigationId, UUID questionId) {
+        return jdbc.sql("""
+                        SELECT %s FROM investigation_questions
+                        WHERE investigation_id = :investigationId AND id = :questionId
+                        """.formatted(QUESTION_COLUMNS))
+                .param("investigationId", investigationId)
+                .param("questionId", questionId)
+                .query((result, rowNumber) -> mapQuestion(result, findCitations(questionId)))
+                .optional();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<InvestigationQuestion> findQuestions(UUID investigationId) {
         List<InvestigationQuestion> questions = jdbc.sql("""
                         SELECT * FROM (
@@ -194,9 +235,14 @@ class JdbcInvestigationRepository implements InvestigationRepository {
     }
 
     private static Investigation mapInvestigation(ResultSet result, int rowNumber) throws SQLException {
+        Timestamp closedAt = result.getTimestamp("closed_at");
         return new Investigation(
                 result.getObject("id", UUID.class),
                 result.getObject("incident_id", UUID.class),
+                InvestigationStatus.valueOf(result.getString("status")),
+                result.getString("closure_summary"),
+                result.getString("closed_by"),
+                closedAt == null ? null : closedAt.toInstant(),
                 result.getTimestamp("created_at").toInstant(),
                 result.getTimestamp("updated_at").toInstant());
     }
