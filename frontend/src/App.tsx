@@ -36,7 +36,7 @@ export function App() {
           {view === "assets" ? <AssetsPage />
             : view === "incidents" ? <IncidentsPage />
               : view === "documents" ? <DocumentsPage />
-                : <InvestigationsPage />}
+                : <InvestigationsPage onViewAllIncidents={() => setView("incidents")} />}
         </main>
       </div>
     </div>

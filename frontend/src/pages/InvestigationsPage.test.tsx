@@ -6,6 +6,17 @@ const incident = {
   severity: "HIGH", status: "REPORTED", occurredAt: "2026-08-20T09:00:00Z",
   createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z",
 };
+const closedIncident = {
+  ...incident,
+  id: "incident-closed",
+  title: "Resolved conveyor stop",
+  status: "CLOSED",
+  occurredAt: "2026-08-19T09:00:00Z",
+};
+const asset = {
+  id: "asset-1", name: "Synthetic pump", type: "MACHINE", externalReference: "SYN-PUMP-1",
+  createdAt: "2026-08-20T08:00:00Z",
+};
 const document = {
   id: "document-1", title: "Synthetic pump manual", originalFilename: "pump.txt", mediaType: "text/plain",
   sizeBytes: 120, checksumSha256: "a".repeat(64), status: "INDEXED", failureReason: null,
@@ -29,7 +40,8 @@ describe("Investigation workspace", () => {
     closed = false;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
-      if (url.startsWith("/api/incidents?")) return json({ items: [incident], page: 0, size: 100, totalElements: 1 });
+      if (url.startsWith("/api/assets?")) return json({ items: [asset], page: 0, size: 100, totalElements: 1 });
+      if (url.startsWith("/api/incidents?")) return json({ items: [incident, closedIncident], page: 0, size: 100, totalElements: 2 });
       if (url.startsWith("/api/documents?")) return json({ items: [document], page: 0, size: 100, totalElements: 1 });
       if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null, closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
       if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(groundedQuestion);
@@ -67,7 +79,7 @@ describe("Investigation workspace", () => {
 
   it("opens a case, asks against selected documents, and renders passage provenance", async () => {
     render(<InvestigationsPage />);
-    fireEvent.change(await screen.findByLabelText("Incident"), { target: { value: "incident-1" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
     fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
     expect(await screen.findByText("No questions yet")).toBeInTheDocument();
 
@@ -84,7 +96,7 @@ describe("Investigation workspace", () => {
 
   it("requires explicit proposal and review before a finding is confirmed", async () => {
     render(<InvestigationsPage />);
-    fireEvent.change(await screen.findByLabelText("Incident"), { target: { value: "incident-1" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
     fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
     await screen.findByText("No questions yet");
     fireEvent.change(screen.getByLabelText("Question"), { target: { value: "What should be inspected?" } });
@@ -109,6 +121,22 @@ describe("Investigation workspace", () => {
     expect(await screen.findByText("Case closure")).toBeInTheDocument();
     expect(screen.getByText("The confirmed finding closes this case.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
+  });
+
+  it("separates recent active incidents from searchable history", async () => {
+    const viewAll = vi.fn();
+    render(<InvestigationsPage onViewAllIncidents={viewAll} />);
+
+    expect(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ })).toBeInTheDocument();
+    expect(screen.queryByText("Resolved conveyor stop")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.getByText("Resolved conveyor stop")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search incidents" }), { target: { value: "missing" } });
+    expect(screen.getByText("No matching history incidents.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View all incidents →" }));
+    expect(viewAll).toHaveBeenCalledOnce();
   });
 });
 

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { EmptyState, ErrorNotice, LoadingRows } from "../components/Feedback";
-import type { FindingStatus, Incident, Investigation, QuestionAnswer, SourceDocument } from "../types";
+import type { Asset, FindingStatus, Incident, Investigation, QuestionAnswer, SourceDocument } from "../types";
 import { PageHeading } from "./AssetsPage";
 
-export function InvestigationsPage() {
+const ACTIVE_INCIDENT_STATUSES = new Set(["REPORTED", "INVESTIGATING"]);
+const RECENT_INCIDENT_LIMIT = 20;
+
+export function InvestigationsPage({ onViewAllIncidents }: { onViewAllIncidents?: () => void }) {
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [documents, setDocuments] = useState<SourceDocument[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState("");
@@ -21,9 +25,10 @@ export function InvestigationsPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.listIncidents(), api.listDocuments()])
-      .then(([incidentPage, documentPage]) => {
+    Promise.all([api.listAssets(), api.listIncidents(), api.listDocuments()])
+      .then(([assetPage, incidentPage, documentPage]) => {
         if (!active) return;
+        setAssets(assetPage.items);
         setIncidents(incidentPage.items);
         setDocuments(documentPage.items);
       })
@@ -130,7 +135,13 @@ export function InvestigationsPage() {
       <aside className="panel investigation-scope">
         <div className="panel-heading"><span className="step">04</span><div><h2>Case scope</h2><p>Choose an incident and optional documents.</p></div></div>
         <div className="scope-fields">
-          <label>Incident<select value={selectedIncidentId} onChange={(event) => { setSelectedIncidentId(event.target.value); setInvestigation(null); setDraftQuestionId(null); }}><option value="">Select an incident</option>{incidents.map((incident) => <option value={incident.id} key={incident.id}>{incident.title}</option>)}</select></label>
+          <IncidentPicker
+            assets={assets}
+            incidents={incidents}
+            selectedIncidentId={selectedIncidentId}
+            onSelect={(incidentId) => { setSelectedIncidentId(incidentId); setInvestigation(null); setDraftQuestionId(null); }}
+            onViewAll={onViewAllIncidents}
+          />
           {selectedIncident ? <div className="incident-context"><strong>{selectedIncident.title}</strong><span>{selectedIncident.severity} · {selectedIncident.status}</span><p>{selectedIncident.description || "No description provided."}</p></div> : null}
           <button className="primary-button" disabled={!selectedIncidentId || opening} onClick={openInvestigation}>{opening ? "Opening…" : investigation ? "Workspace open" : "Open investigation"}</button>
           <fieldset><legend>Document scope <span>Optional</span></legend><p>With none selected, all indexed documents are searched.</p>{indexedDocuments.length === 0 ? <small>No indexed documents available.</small> : indexedDocuments.map((document) => <label className="document-choice" key={document.id}><input type="checkbox" checked={selectedDocuments.has(document.id)} onChange={() => toggleDocument(document.id)} /><span><strong>{document.title}</strong><small>{document.extractedPageCount} page{document.extractedPageCount === 1 ? "" : "s"}</small></span></label>)}</fieldset>
@@ -158,6 +169,64 @@ export function InvestigationsPage() {
         </>}
       </section>
     </div>}
+  </section>;
+}
+
+function IncidentPicker({
+  assets,
+  incidents,
+  selectedIncidentId,
+  onSelect,
+  onViewAll,
+}: {
+  assets: Asset[];
+  incidents: Incident[];
+  selectedIncidentId: string;
+  onSelect: (incidentId: string) => void;
+  onViewAll?: () => void;
+}) {
+  const [view, setView] = useState<"active" | "history">("active");
+  const [query, setQuery] = useState("");
+  const assetNames = useMemo(() => new Map(assets.map((asset) => [asset.id, asset.name])), [assets]);
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return incidents
+      .filter((incident) => view === "active"
+        ? ACTIVE_INCIDENT_STATUSES.has(incident.status)
+        : !ACTIVE_INCIDENT_STATUSES.has(incident.status))
+      .filter((incident) => {
+        if (!normalizedQuery) return true;
+        return [incident.title, incident.description, incident.id, assetNames.get(incident.assetId)]
+          .some((value) => value?.toLocaleLowerCase().includes(normalizedQuery));
+      })
+      .slice(0, RECENT_INCIDENT_LIMIT);
+  }, [assetNames, incidents, query, view]);
+
+  return <section className="incident-picker" aria-label="Incident picker">
+    <div className="incident-picker-heading">
+      <strong>Incident</strong>
+      <span>Newest {RECENT_INCIDENT_LIMIT}</span>
+    </div>
+    <div className="incident-picker-tabs" role="tablist" aria-label="Incident availability">
+      <button type="button" role="tab" aria-selected={view === "active"} className={view === "active" ? "active" : ""} onClick={() => setView("active")}>Active</button>
+      <button type="button" role="tab" aria-selected={view === "history"} className={view === "history" ? "active" : ""} onClick={() => setView("history")}>History</button>
+    </div>
+    <label className="incident-search"><span className="visually-hidden">Search incidents</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, asset, or ID" /></label>
+    <div className="incident-picker-results">
+      {filtered.length === 0 ? <p>No matching {view} incidents.</p> : filtered.map((incident) => <button
+        type="button"
+        key={incident.id}
+        className={selectedIncidentId === incident.id ? "incident-option selected" : "incident-option"}
+        aria-pressed={selectedIncidentId === incident.id}
+        aria-label={`Select ${incident.title} incident from ${formatDate(incident.occurredAt)}`}
+        onClick={() => onSelect(incident.id)}
+      >
+        <span className={`severity severity-${incident.severity.toLowerCase()}`}>{incident.severity.slice(0, 1)}</span>
+        <span className="incident-option-copy"><strong>{incident.title}</strong><small>{assetNames.get(incident.assetId) ?? "Unknown asset"} · {formatDate(incident.occurredAt)}</small></span>
+        <span className={`status status-${incident.status.toLowerCase()}`}>{incident.status}</span>
+      </button>)}
+    </div>
+    {onViewAll ? <button type="button" className="incident-view-all" onClick={onViewAll}>View all incidents →</button> : null}
   </section>;
 }
 
