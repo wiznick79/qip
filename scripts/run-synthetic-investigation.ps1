@@ -20,14 +20,29 @@ if ($null -eq $document -or $document.status -ne "INDEXED") {
     throw "Synthetic Atlas HP-40 manual is not indexed. Restart QIP with the intended model profile and retry."
 }
 
+$eventTime = [DateTimeOffset]::UtcNow.AddSeconds(-1).ToString("o")
 $incidentBody = @{
     assetId = $asset.id
     title = "Synthetic HP-40 heat and slow retract"
     description = "Oil temperature reached 66 C, ram retract time rose to 5.4 seconds, and return-filter differential was 3.1 bar."
     severity = "HIGH"
-    occurredAt = [DateTimeOffset]::UtcNow.ToString("o")
+    occurredAt = $eventTime
 } | ConvertTo-Json
 $incident = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/incidents" -ContentType "application/json" -Body $incidentBody
+$observationBody = @{
+    text = "Operator observed elevated oil temperature and slower ram retraction before any machine setting was changed."
+    authorReference = "synthetic-demo-operator"
+    observedAt = $eventTime
+} | ConvertTo-Json
+$observation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/incidents/$($incident.id)/observations" -ContentType "application/json" -Body $observationBody
+$evidenceBody = @{
+    type = "MEASUREMENT"
+    summary = "Return-filter differential pressure measured 3.1 bar while oil temperature was 66 C."
+    sourceReference = "Synthetic return-line gauge PT-14"
+    eventAt = $eventTime
+    submittedBy = "synthetic-demo-investigator"
+} | ConvertTo-Json
+$evidence = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/incidents/$($incident.id)/evidence" -ContentType "application/json" -Body $evidenceBody
 $investigation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/incidents/$($incident.id)/investigations"
 $incident = Invoke-RestMethod -Method Patch -Uri "$BaseUrl/api/incidents/$($incident.id)/status" -ContentType "application/json" -Body (@{ status = "INVESTIGATING" } | ConvertTo-Json)
 
@@ -67,6 +82,8 @@ Write-Host "Synthetic investigation completed."
 Write-Host "Incident: $($incident.id)"
 Write-Host "Investigation: $($investigation.id)"
 Write-Host "Incident status: $($incident.status)"
+Write-Host "Observation: $($observation.authorReference) [$($observation.id)]"
+Write-Host "Evidence: $($evidence.type), $($evidence.provenance) [$($evidence.id)]"
 Write-Host "Status: $($answer.status)"
 Write-Host "Answer: $($answer.answer)"
 foreach ($citation in $answer.citations) {

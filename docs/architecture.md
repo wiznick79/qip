@@ -1,7 +1,7 @@
 # Architecture and MVP
 
-Status: local MVP implemented through milestone 12
-Last updated: 2026-08-21
+Status: local MVP implemented through milestone 13
+Last updated: 2026-08-22
 
 ## 1. Product definition
 
@@ -170,6 +170,8 @@ Backend vertical slices come first so that the UI consumes stable, tested contra
 
 The milestone 6 spike selected React 19 with strict TypeScript and Vite 8, recorded in ADR 0003. The frontend shares the application's release lifecycle and its production assets are packaged into the Spring Boot JAR. Vite proxies `/api` during local development. Independent deployment remains justified only if release cadence, caching, team ownership, or hosting requirements later differ.
 
+The local container workflow preserves that single deployable. A multi-stage build produces the React bundle, packages it into the Spring Boot JAR, and copies the artifact into a non-root Java runtime image. Compose runs that QIP image with PostgreSQL/pgvector, health-gates application startup, and persists database and document storage separately. Host Ollama is reached through `host.docker.internal` so the default workflow does not duplicate large model artifacts or assume portable GPU container configuration. ADR 0010 records the decision.
+
 The first UI increment covers navigation, assets, incidents, document upload, and ingestion status. The grounded question-and-answer milestone then adds the investigation workspace, source panel, and document passage navigation. The conversational panel is part of a structured case, not a site-wide unconstrained chat box.
 
 ### Incident lifecycle and search
@@ -181,6 +183,8 @@ Incident search accepts optional asset, status, and occurred-at bounds. `from` i
 The milestone 12 web workflow consumes that pagination in 20-record pages and exposes only valid next lifecycle actions. Starting an investigation explicitly moves a reported incident to `INVESTIGATING`; closing the investigation does not silently resolve the incident. Instead, the closed workspace offers a separate human action to move an investigating incident to `RESOLVED`. Resolved incidents may be reopened or explicitly closed from the incident queue.
 
 Primary screens use lightweight hash routes, including an incident identifier for an investigation workspace. This makes case links bookmarkable and restores the selected case after refresh without introducing a routing dependency. The compact investigation picker remains bounded to recent records; the paginated incident queue is the complete browsing surface.
+
+Milestone 13 adds a bookmarkable incident record at the same incident route. It presents incident context, independently paginated observation and evidence timelines, append-only input forms, and a direct investigation action. Caller-supplied actor references are visibly identified as unauthenticated provenance labels, while evidence provenance remains server-assigned. These records are deliberately not included in model context yet; doing so requires a separate bounded, provenance-aware design and citation policy.
 
 ### Incident observations
 

@@ -30,6 +30,30 @@ export type Incident = {
   updatedAt: string;
 };
 
+export type Observation = {
+  id: string;
+  incidentId: string;
+  text: string;
+  authorReference: string;
+  observedAt: string;
+  recordedAt: string;
+};
+
+export type EvidenceType = "MEASUREMENT" | "DOCUMENT" | "IMAGE" | "LOG_ENTRY" | "PHYSICAL_ITEM" | "TEST_RESULT" | "OTHER";
+export type EvidenceProvenance = "HUMAN_ENTERED" | "IMPORTED" | "RETRIEVED" | "MODEL_GENERATED";
+
+export type EvidenceItem = {
+  id: string;
+  incidentId: string;
+  type: EvidenceType;
+  summary: string;
+  sourceReference: string;
+  eventAt: string;
+  provenance: EvidenceProvenance;
+  submittedBy: string;
+  recordedAt: string;
+};
+
 export type DocumentStatus =
   | "UPLOADED"
   | "EXTRACTING"

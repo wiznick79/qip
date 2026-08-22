@@ -92,8 +92,8 @@ export function AssetsPage() {
   );
 }
 
-export function PageHeading({ eyebrow, title, detail, count }: { eyebrow: string; title: string; detail: string; count: number }) {
-  return <header className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h1 id={`${title.toLowerCase()}-title`}>{title}</h1><p>{detail}</p></div><div className="metric"><strong>{count}</strong><span>in view</span></div></header>;
+export function PageHeading({ eyebrow, title, detail, count, headingId }: { eyebrow: string; title: string; detail: string; count: number; headingId?: string }) {
+  return <header className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h1 id={headingId ?? `${title.toLowerCase()}-title`}>{title}</h1><p>{detail}</p></div><div className="metric"><strong>{count}</strong><span>in view</span></div></header>;
 }
 
 function label(value: string) { return value.toLowerCase().replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase()); }

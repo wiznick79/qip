@@ -8,7 +8,13 @@ const statuses: (IncidentStatus | "")[] = ["", "REPORTED", "INVESTIGATING", "RES
 
 const PAGE_SIZE = 20;
 
-export function IncidentsPage({ onInvestigate }: { onInvestigate?: (incidentId: string) => void }) {
+export function IncidentsPage({
+  onInvestigate,
+  onOpenCase,
+}: {
+  onInvestigate?: (incidentId: string) => void;
+  onOpenCase?: (incidentId: string) => void;
+}) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [status, setStatus] = useState<IncidentStatus | "">("");
@@ -84,7 +90,7 @@ export function IncidentsPage({ onInvestigate }: { onInvestigate?: (incidentId: 
       </article>
       <article className="panel list-panel">
         <div className="panel-heading filter-heading"><div><h2>Incident queue</h2><p>Newest occurrence first.</p></div><label className="compact-label">Status<select aria-label="Filter incidents by status" value={status} onChange={(event) => { setStatus(event.target.value as IncidentStatus | ""); setPage(0); }}>{statuses.map((item) => <option key={item || "ALL"} value={item}>{item || "ALL"}</option>)}</select></label></div>
-        {loading ? <LoadingRows columns={4} /> : incidents.length === 0 ? <EmptyState title="No matching incidents" detail="Report an incident or change the status filter." /> : <div className="records">{incidents.map((incident) => <div className="record incident-record" key={incident.id}><span className={`severity severity-${incident.severity.toLowerCase()}`}>{incident.severity.slice(0, 1)}</span><div className="record-main"><strong>{incident.title}</strong><span>{assetNames.get(incident.assetId) ?? "Unknown asset"} · {formatDate(incident.occurredAt)}</span></div><span className={`status status-${incident.status.toLowerCase()}`}>{incident.status}</span><div className="incident-actions">{workspaceAction(incident)}{incident.status === "INVESTIGATING" ? <button className="quiet-button" disabled={changingIncidentId === incident.id} onClick={() => transition(incident, "RESOLVED")}>Mark resolved</button> : null}{incident.status === "RESOLVED" ? <><button className="quiet-button" disabled={changingIncidentId === incident.id} onClick={() => transition(incident, "INVESTIGATING")}>Reopen</button><button className="quiet-button" disabled={changingIncidentId === incident.id} onClick={() => transition(incident, "CLOSED")}>Close incident</button></> : null}</div></div>)}</div>}
+        {loading ? <LoadingRows columns={4} /> : incidents.length === 0 ? <EmptyState title="No matching incidents" detail="Report an incident or change the status filter." /> : <div className="records">{incidents.map((incident) => <div className="record incident-record" key={incident.id}><span className={`severity severity-${incident.severity.toLowerCase()}`}>{incident.severity.slice(0, 1)}</span><div className="record-main"><strong>{incident.title}</strong><span>{assetNames.get(incident.assetId) ?? "Unknown asset"} · {formatDate(incident.occurredAt)}</span></div><span className={`status status-${incident.status.toLowerCase()}`}>{incident.status}</span><div className="incident-actions"><button className="quiet-button" onClick={() => onOpenCase?.(incident.id)}>Case details</button>{workspaceAction(incident)}{incident.status === "INVESTIGATING" ? <button className="quiet-button" disabled={changingIncidentId === incident.id} onClick={() => transition(incident, "RESOLVED")}>Mark resolved</button> : null}{incident.status === "RESOLVED" ? <><button className="quiet-button" disabled={changingIncidentId === incident.id} onClick={() => transition(incident, "INVESTIGATING")}>Reopen</button><button className="quiet-button" disabled={changingIncidentId === incident.id} onClick={() => transition(incident, "CLOSED")}>Close incident</button></> : null}</div></div>)}</div>}
         <div className="pagination"><button className="quiet-button" disabled={loading || page === 0} onClick={() => setPage((current) => current - 1)}>Previous</button><span>Page {page + 1} of {pageCount} · {totalElements} incident{totalElements === 1 ? "" : "s"}</span><button className="quiet-button" disabled={loading || page + 1 >= pageCount} onClick={() => setPage((current) => current + 1)}>Next</button></div>
       </article>
     </div>

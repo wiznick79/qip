@@ -7,6 +7,8 @@ describe("QIP workspace", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "/api/incidents/incident-1") return jsonResponse(incident);
+      if (url.startsWith("/api/incidents/incident-1/observations")) return jsonResponse({ items: [], page: 0, size: 10, totalElements: 0 });
+      if (url.startsWith("/api/incidents/incident-1/evidence")) return jsonResponse({ items: [], page: 0, size: 10, totalElements: 0 });
       if (url === "/api/incidents/incident-1/investigations" && init?.method === "POST") {
         return jsonResponse({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null,
           closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z",
@@ -61,6 +63,15 @@ describe("QIP workspace", () => {
     expect(await screen.findAllByText("Synthetic vibration")).toHaveLength(2);
     expect(screen.getByText("No questions yet")).toBeInTheDocument();
     expect(window.location.hash).toBe("#/investigations?incident=incident-1");
+  });
+
+  it("opens a bookmarkable incident record URL", async () => {
+    window.history.replaceState(null, "", "#/incidents?incident=incident-1");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Synthetic vibration" })).toBeInTheDocument();
+    expect(screen.getByText(/not sent to the AI model/i)).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/incidents?incident=incident-1");
   });
 
   it("resets the incident form after a successful asynchronous submission", async () => {

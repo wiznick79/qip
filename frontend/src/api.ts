@@ -4,6 +4,9 @@ import type {
   Incident,
   IncidentSeverity,
   IncidentStatus,
+  Observation,
+  EvidenceItem,
+  EvidenceType,
   Investigation,
   Finding,
   FindingStatus,
@@ -64,6 +67,25 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  listObservations: (incidentId: string, page = 0, size = 20) =>
+    request<Page<Observation>>(`/api/incidents/${encodeURIComponent(incidentId)}/observations?page=${page}&size=${size}`),
+  appendObservation: (incidentId: string, input: { text: string; authorReference: string; observedAt: string }) =>
+    request<Observation>(`/api/incidents/${encodeURIComponent(incidentId)}/observations`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  listEvidence: (incidentId: string, page = 0, size = 20) =>
+    request<Page<EvidenceItem>>(`/api/incidents/${encodeURIComponent(incidentId)}/evidence?page=${page}&size=${size}`),
+  appendEvidence: (incidentId: string, input: {
+    type: EvidenceType;
+    summary: string;
+    sourceReference: string;
+    eventAt: string;
+    submittedBy: string;
+  }) => request<EvidenceItem>(`/api/incidents/${encodeURIComponent(incidentId)}/evidence`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
   listDocuments: () => request<Page<SourceDocument>>("/api/documents?page=0&size=100"),
   uploadDocument: (title: string, file: File) => {
     const form = new FormData();

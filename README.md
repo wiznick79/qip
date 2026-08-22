@@ -17,6 +17,7 @@ Start with:
 - [ADR 0007: operational API and generated module documentation](docs/adr/0007-use-actuator-springdoc-and-generated-module-docs.md)
 - [ADR 0008: explicit human review for findings](docs/adr/0008-require-explicit-human-review-for-findings.md)
 - [ADR 0009: investigation closure after human review](docs/adr/0009-close-investigations-only-after-human-review.md)
+- [ADR 0010: single-container web application packaging](docs/adr/0010-package-the-web-client-and-backend-in-one-container.md)
 - [Local MVP demonstration](docs/demo.md)
 
 ## Development
@@ -37,12 +38,37 @@ Apply the Java formatter with `./mvnw spotless:apply`. The `verify` lifecycle co
 
 The integration test suite uses Testcontainers and therefore requires a running Docker engine.
 
-## Local database
+## One-command local stack
 
-The local dependency is PostgreSQL 17 with pgvector 0.8.6. Start it with:
+QIP's production React bundle is packaged inside the Spring Boot application image, so the web client and API do not need separate runtime containers or terminals. Keep the locally installed Ollama service running, then build and start QIP plus PostgreSQL:
+
+```powershell
+docker compose up --build -d --wait
+```
+
+Open `http://localhost:8080/`. Subsequent starts can omit `--build`:
+
+```powershell
+docker compose up -d --wait
+```
+
+View application logs or stop the stack with:
+
+```powershell
+docker compose logs -f qip
+docker compose down
+```
+
+The named database and document volumes survive `docker compose down`. Use `docker compose down --volumes` only when you intentionally want to delete local QIP data. Copy `.env.example` to `.env` to override the HTTP port, model tags, timeouts, or local-only database values. The default application container connects to host Ollama through `host.docker.internal`.
+
+To run entirely without Ollama, set `QIP_SPRING_PROFILES=local` in `.env`; QIP will use its deterministic offline adapters.
+
+## Database-only development
+
+For rapid source development with Vite and `spring-boot:run`, start only PostgreSQL 17 with pgvector 0.8.6:
 
 ```shell
-docker compose up -d --wait
+docker compose up -d --wait postgres
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
@@ -52,9 +78,9 @@ On Windows PowerShell, run the application with:
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
-The `local` profile uses deliberately non-secret development defaults from `application-local.yml`. Copy `.env.example` to `.env` only when you need to override them. Other environments should provide standard Spring datasource configuration through secret management rather than activate the `local` profile.
+The `local` profile uses deliberately non-secret development defaults from `application-local.yml`. Other environments should provide standard Spring datasource configuration through secret management rather than activate the `local` profile.
 
-Stop the database with `docker compose down`. Its named volume is preserved; add `--volumes` only when you intentionally want to delete local database data.
+Stop the development database with `docker compose down`. Its named volume is preserved.
 
 ## Current API
 
@@ -169,9 +195,9 @@ npm run dev
 
 Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
-The web client covers asset registration, paginated incident reporting and lifecycle actions, document upload/status, and a structured investigation workspace. Incident rows link directly to bookmarkable case URLs. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. It is not a site-wide unconstrained chat box.
+The web client covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
 
-The repository contains the local MVP implemented through Milestone 12, including explicit finding review, terminal investigation closure, paginated case navigation, and deliberate incident lifecycle actions. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+The repository contains the local MVP implemented through Milestone 13, including explicit finding review, terminal investigation closure, paginated case navigation, deliberate incident lifecycle actions, and provenance-aware incident records. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
 
 API and operational endpoints are available while QIP is running:
 
