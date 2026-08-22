@@ -2,7 +2,7 @@ name: qip
 
 services:
   qip:
-    image: qip:local
+    image: ${QIP_IMAGE:-qip:local}
     build:
       context: .
       target: runtime

@@ -13,11 +13,35 @@
 
   <groupId>io.github.wiznick79</groupId>
   <artifactId>qip</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>${revision}</version>
   <name>Quality Investigation Platform</name>
   <description>AI-assisted industrial incident and quality investigation platform</description>
+  <url>https://github.com/wiznick79/qip</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>wiznick79</id>
+      <name>wiznick79</name>
+      <url>https://github.com/wiznick79</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/wiznick79/qip.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/wiznick79/qip.git</developerConnection>
+    <url>https://github.com/wiznick79/qip</url>
+  </scm>
 
   <properties>
+    <revision>0.1.0-SNAPSHOT</revision>
     <java.version>21</java.version>
     <spring-modulith.version>2.1.0</spring-modulith.version>
     <spring-ai.version>2.0.0</spring-ai.version>
