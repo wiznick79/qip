@@ -1,8 +1,43 @@
 # Quality Investigation Platform (QIP)
 
+[![Build](https://github.com/wiznick79/qip/actions/workflows/ci.yml/badge.svg)](https://github.com/wiznick79/qip/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 QIP is a standalone, AI-assisted platform for investigating industrial incidents and quality problems. It combines user-entered incident data with uploaded technical knowledge, then helps investigators find and summarize relevant evidence while preserving the source of every result.
 
 The project is intentionally starting as a modular Java application. Kafka, microservices, Kubernetes, and cloud deployment are later learning milestones that must be justified by an actual architectural need.
+
+## Portfolio snapshot
+
+QIP demonstrates a production-minded AI workflow without pretending that generated text is an autonomous root-cause decision. A reviewer can run the complete application without paid credentials, inspect every supporting passage, and follow the provenance change from model-generated answer to separately reviewed human finding.
+
+![QIP grounded investigation workspace using a synthetic hydraulic-press case](docs/images/qip-investigation-workspace.png)
+
+_Grounded investigation workspace using fictional equipment and manuals. Local Ollama wording and latency vary by model and hardware._
+
+| Area | What the project demonstrates |
+| --- | --- |
+| Backend | Java 21, Spring Boot, package-by-module design, Spring Modulith verification, REST problem details, Flyway, JPA, PostgreSQL, and pgvector |
+| AI safety | Bounded retrieval, untrusted-document handling, versioned prompts, citation validation, insufficient-evidence behavior, deterministic test adapters, and optional local Ollama models |
+| Human workflow | Incident observations and evidence, draft findings, independent confirmation or rejection with rationale, immutable review history, and explicit case closure |
+| Frontend | React and TypeScript investigation workspace with paginated case navigation, upload status, grounded-answer states, citations, and review controls |
+| Delivery | Testcontainers integration tests, frontend verification, GitHub Actions, a non-root multi-stage image, one-command Compose startup, and attested tag releases |
+
+### Five-minute credential-free tour
+
+On PowerShell, run QIP with its deterministic offline models and execute the synthetic case:
+
+```powershell
+$env:QIP_SPRING_PROFILES = "local"
+docker compose up --build -d --wait
+.\scripts\run-synthetic-investigation.ps1 -ReindexDocuments
+```
+
+Open `http://localhost:8080/` to inspect the incident record, evidence timeline, grounded answer, cited manual passage, reviewed finding, and closure state. All machines, incidents, measurements, and manuals are visibly synthetic.
+
+### Deliberate boundaries
+
+This release candidate is a local portfolio MVP, not production machinery-control software. Authentication, multi-tenancy, hosted deployment, OCR, enterprise integrations, and production observability are intentionally deferred. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
 
 Start with:
 
@@ -18,17 +53,26 @@ Start with:
 - [ADR 0008: explicit human review for findings](docs/adr/0008-require-explicit-human-review-for-findings.md)
 - [ADR 0009: investigation closure after human review](docs/adr/0009-close-investigations-only-after-human-review.md)
 - [ADR 0010: single-container web application packaging](docs/adr/0010-package-the-web-client-and-backend-in-one-container.md)
+- [ADR 0011: attested GitHub releases and GHCR images](docs/adr/0011-publish-attested-github-releases.md)
 - [Local MVP demonstration](docs/demo.md)
+- [Release process](docs/releasing.md)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+- [Apache License 2.0](LICENSE)
 
 ## Development
 
-Prerequisites: Java 21 or newer. Use the committed Maven Wrapper for all project commands.
+Source-build prerequisites are Java 21 or newer, Node.js 22 or newer, and a running Docker engine for integration tests. Use the committed Maven Wrapper for backend commands and the locked npm dependency graph for the frontend.
 
 ```shell
+cd frontend
+npm ci
+npm run verify
+cd ..
 ./mvnw verify
 ```
 
-On Windows PowerShell:
+On Windows PowerShell, the final command is:
 
 ```powershell
 .\mvnw.cmd verify
@@ -62,6 +106,14 @@ docker compose down
 The named database and document volumes survive `docker compose down`. Use `docker compose down --volumes` only when you intentionally want to delete local QIP data. Copy `.env.example` to `.env` to override the HTTP port, model tags, timeouts, or local-only database values. The default application container connects to host Ollama through `host.docker.internal`.
 
 To run entirely without Ollama, set `QIP_SPRING_PROFILES=local` in `.env`; QIP will use its deterministic offline adapters.
+
+After the first tagged release, Compose can run its published image without compiling source:
+
+```powershell
+$env:QIP_IMAGE = "ghcr.io/wiznick79/qip:0.1.0"
+docker compose pull qip
+docker compose up -d --no-build --wait
+```
 
 ## Database-only development
 
@@ -197,7 +249,7 @@ Vite serves the development UI at `http://localhost:5173` and proxies `/api` to 
 
 The web client covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
 
-The repository contains the local MVP implemented through Milestone 13, including explicit finding review, terminal investigation closure, paginated case navigation, deliberate incident lifecycle actions, and provenance-aware incident records. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+The repository contains the local MVP implemented through Milestone 14, including explicit finding review, terminal investigation closure, paginated case navigation, deliberate incident lifecycle actions, provenance-aware incident records, reproducible container packaging, and tag-driven artifact publication. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
 
 API and operational endpoints are available while QIP is running:
 

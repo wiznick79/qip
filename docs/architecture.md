@@ -1,6 +1,6 @@
 # Architecture and MVP
 
-Status: local MVP implemented through milestone 13
+Status: local MVP implemented through milestone 14; preparing first tagged release
 Last updated: 2026-08-22
 
 ## 1. Product definition
@@ -440,6 +440,22 @@ Each numbered item should be a small, independently reviewable change. Do not co
    - Add synthetic seed data, public/sample documents, scripted demo path, OpenAPI docs, upload/security edge-case tests, health endpoints, and architecture diagrams generated from verified modules.
    - Define a small evaluation set before declaring the MVP complete.
    - Implemented with the synthetic loader and end-to-end investigation script, health probes, generated OpenAPI/Swagger UI, build-generated Modulith documentation, encrypted-upload and model-output hardening, and a versioned deterministic retrieval evaluation set.
+
+11. **Human-reviewed findings and case lifecycle**
+   - Require a separate attributed review before a draft finding becomes confirmed or rejected.
+   - Close investigations only after drafts are resolved and a finding is confirmed; keep incident resolution a separate human action.
+
+12. **Incident evidence workspace**
+   - Add bookmarkable incident records with paginated observation and human-entered evidence timelines.
+   - Keep this structured case context out of model prompts until an explicit context-selection policy is designed and tested.
+
+13. **Local runtime packaging**
+   - Package the production React client and Spring Boot backend in one non-root image.
+   - Start QIP and PostgreSQL through Compose while retaining host Ollama as an optional local adapter.
+
+14. **Portfolio and release readiness**
+   - Present the product, safety posture, architecture trade-offs, and credential-free demonstration from the repository landing page.
+   - Verify the production image in CI and publish semantic-tagged JAR and GHCR artifacts with checksums and provenance attestations.
 
 ## 11. Architectural decision policy
 
