@@ -2,14 +2,14 @@
 
 ARG QIP_VERSION=0.1.0-SNAPSHOT
 
-FROM node:22.14.0-alpine AS frontend-build
+FROM node:26.7.0-alpine AS frontend-build
 WORKDIR /workspace/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM maven:3.9.11-eclipse-temurin-21-alpine AS application-build
+FROM maven:3.9.15-eclipse-temurin-26-alpine AS application-build
 ARG QIP_VERSION
 WORKDIR /workspace
 COPY pom.xml ./
@@ -19,7 +19,7 @@ COPY config/ config/
 COPY --from=frontend-build /workspace/frontend/dist frontend/dist/
 RUN mvn -B -Drevision="${QIP_VERSION}" -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:24-jre-alpine AS runtime
 ARG QIP_VERSION
 ARG QIP_REVISION=unknown
 LABEL org.opencontainers.image.title="Quality Investigation Platform" \
