@@ -3,6 +3,7 @@ import { AssetsPage } from "./pages/AssetsPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { IncidentsPage } from "./pages/IncidentsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
+import { IncidentWorkspacePage } from "./pages/IncidentWorkspacePage";
 
 type View = "assets" | "incidents" | "documents" | "investigations";
 
@@ -50,7 +51,16 @@ export function App() {
         </aside>
         <main id="main">
           {location.view === "assets" ? <AssetsPage />
-            : location.view === "incidents" ? <IncidentsPage onInvestigate={(incidentId) => navigate("investigations", incidentId)} />
+            : location.view === "incidents" ? location.incidentId
+              ? <IncidentWorkspacePage
+                incidentId={location.incidentId}
+                onBack={() => navigate("incidents")}
+                onInvestigate={(incidentId) => navigate("investigations", incidentId)}
+              />
+              : <IncidentsPage
+                onOpenCase={(incidentId) => navigate("incidents", incidentId)}
+                onInvestigate={(incidentId) => navigate("investigations", incidentId)}
+              />
               : location.view === "documents" ? <DocumentsPage />
                 : <InvestigationsPage
                   initialIncidentId={location.incidentId}

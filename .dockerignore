@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+!.env.example
+*.iml
+*.log
+*.tmp
+data
+target
+frontend/coverage
+frontend/dist
+frontend/node_modules
+out

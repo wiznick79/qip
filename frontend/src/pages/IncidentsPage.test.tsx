@@ -37,8 +37,12 @@ describe("Incident queue lifecycle", () => {
 
   it("starts an investigation explicitly and supports a separate resolution action", async () => {
     const investigate = vi.fn();
-    render(<IncidentsPage onInvestigate={investigate} />);
+    const openCase = vi.fn();
+    render(<IncidentsPage onInvestigate={investigate} onOpenCase={openCase} />);
     await screen.findByText("Reported seal leak");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Case details" })[0]);
+    expect(openCase).toHaveBeenCalledWith("incident-reported");
 
     fireEvent.click(screen.getByRole("button", { name: "Start investigation" }));
     await waitFor(() => expect(investigate).toHaveBeenCalledWith("incident-reported"));
