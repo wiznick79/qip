@@ -31,7 +31,10 @@ updates:
     groups:
       node-build-image:
         patterns: ["node"]
-      maven-build-image:
-        patterns: ["maven"]
-      java-runtime-image:
+      java-lts-images:
         patterns: ["eclipse-temurin"]
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
