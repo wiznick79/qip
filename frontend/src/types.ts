@@ -5,6 +5,14 @@ export type Page<T> = {
   totalElements: number;
 };
 
+export type UserSession = {
+  authenticated: boolean;
+  username: string | null;
+  roles: string[];
+  csrfHeaderName: string;
+  csrfToken: string;
+};
+
 export type AssetType = "MACHINE" | "PRODUCTION_LINE" | "TOOL" | "OTHER";
 
 export type Asset = {

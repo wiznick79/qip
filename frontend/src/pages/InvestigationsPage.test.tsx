@@ -46,28 +46,28 @@ describe("Investigation workspace", () => {
       if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null, closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
       if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(groundedQuestion);
       if (url === "/api/investigations/investigation-1/findings" && init?.method === "POST") {
-        const body = JSON.parse(String(init.body)) as { sourceQuestionId: string; summary: string; proposedBy: string };
+        const body = JSON.parse(String(init.body)) as { sourceQuestionId: string; summary: string };
         findings = [{ id: "finding-1", sourceQuestionId: body.sourceQuestionId, summary: body.summary,
-          status: "DRAFT", proposedBy: body.proposedBy, proposedAt: "2026-08-20T10:02:00Z",
+          status: "DRAFT", proposedBy: "wiznick79", proposedAt: "2026-08-20T10:02:00Z",
           reviewedBy: null, reviewRationale: null, reviewedAt: null,
-          events: [{ id: "event-1", type: "PROPOSED", actorReference: body.proposedBy,
+          events: [{ id: "event-1", type: "PROPOSED", actorReference: "wiznick79",
             rationale: null, occurredAt: "2026-08-20T10:02:00Z" }] }];
         return json(findings[0]);
       }
       if (url === "/api/investigations/investigation-1/findings/finding-1/reviews" && init?.method === "POST") {
-        const body = JSON.parse(String(init.body)) as { decision: string; reviewerReference: string; rationale: string };
-        findings = [{ ...findings[0], status: body.decision, reviewedBy: body.reviewerReference,
+        const body = JSON.parse(String(init.body)) as { decision: string; rationale: string };
+        findings = [{ ...findings[0], status: body.decision, reviewedBy: "wiznick79",
           reviewRationale: body.rationale, reviewedAt: "2026-08-20T10:03:00Z",
           events: [...(findings[0].events as unknown[]), { id: "event-2", type: body.decision,
-            actorReference: body.reviewerReference, rationale: body.rationale,
+            actorReference: "wiznick79", rationale: body.rationale,
             occurredAt: "2026-08-20T10:03:00Z" }] }];
         return json(findings[0]);
       }
       if (url === "/api/investigations/investigation-1/closure" && init?.method === "POST") {
-        const body = JSON.parse(String(init.body)) as { summary: string; closedBy: string };
+        const body = JSON.parse(String(init.body)) as { summary: string };
         closed = true;
         return json({ id: "investigation-1", incidentId: "incident-1", status: "CLOSED",
-          closureSummary: body.summary, closedBy: body.closedBy, closedAt: "2026-08-20T10:04:00Z",
+          closureSummary: body.summary, closedBy: "wiznick79", closedAt: "2026-08-20T10:04:00Z",
           questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:04:00Z" });
       }
       if (url === "/api/incidents/incident-1/status" && init?.method === "PATCH") {
@@ -107,6 +107,7 @@ describe("Investigation workspace", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Propose as finding" }));
     expect(screen.getByLabelText("Finding summary")).toHaveValue("Inspect the synthetic hydraulic seal.");
+    expect(screen.queryByLabelText("Proposed by")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create draft finding" }));
 
     expect(await screen.findByText("DRAFT")).toBeInTheDocument();

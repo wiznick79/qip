@@ -1,7 +1,7 @@
 # Architecture and MVP
 
-Status: local MVP implemented through milestone 14; preparing first tagged release
-Last updated: 2026-08-22
+Status: v0.1.0 local MVP released; milestone 14 authentication in progress
+Last updated: 2026-08-23
 
 ## 1. Product definition
 
@@ -184,17 +184,19 @@ The milestone 12 web workflow consumes that pagination in 20-record pages and ex
 
 Primary screens use lightweight hash routes, including an incident identifier for an investigation workspace. This makes case links bookmarkable and restores the selected case after refresh without introducing a routing dependency. The compact investigation picker remains bounded to recent records; the paginated incident queue is the complete browsing surface.
 
-Milestone 13 adds a bookmarkable incident record at the same incident route. It presents incident context, independently paginated observation and evidence timelines, append-only input forms, and a direct investigation action. Caller-supplied actor references are visibly identified as unauthenticated provenance labels, while evidence provenance remains server-assigned. These records are deliberately not included in model context yet; doing so requires a separate bounded, provenance-aware design and citation policy.
+The authenticated web client opens on a lightweight dashboard assembled from existing paginated APIs. It presents workflow totals, the five newest incidents, and direct navigation actions without introducing a dashboard-specific backend or duplicating domain state.
+
+Milestone 13 adds a bookmarkable incident record at the same incident route. It presents incident context, independently paginated observation and evidence timelines, append-only input forms, and a direct investigation action. Milestone 14 derives actor references from the authenticated principal, while evidence provenance remains server-assigned. These records are deliberately not included in model context yet; doing so requires a separate bounded, provenance-aware design and citation policy.
 
 ### Incident observations
 
-An observation is a human-authored, append-only statement attached to one incident. It records the supplied observation time, an explicit author reference, and the application recording time. Until authentication is introduced, the author reference is a caller-supplied provenance label rather than a verified identity. The API offers append and paginated timeline retrieval, but no update or delete operation. A correction is therefore another attributable observation rather than a silent rewrite of investigation history.
+An observation is a human-authored, append-only statement attached to one incident. It records the supplied observation time, the authenticated principal as author reference, and the application recording time. The API offers append and paginated timeline retrieval, but no update or delete operation. A correction is therefore another attributable observation rather than a silent rewrite of investigation history.
 
 Observation time cannot be later than the application recording time. Timeline retrieval is ordered by observation time and then opaque observation ID, both ascending, so pagination remains deterministic.
 
 ### Incident evidence
 
-An evidence item is a typed, source-attributed investigation input, not a proven cause. The manual API accepts a summary, evidence type, source reference, event time, and submitter reference, then assigns `HUMAN_ENTERED` provenance on the server. Clients cannot select or upgrade provenance; attempts to submit a provenance value are rejected. Until authentication exists, the submitter reference is a caller-supplied provenance label rather than a verified identity.
+An evidence item is a typed, source-attributed investigation input, not a proven cause. The manual API accepts a summary, evidence type, source reference, and event time, then derives the submitter from the authenticated principal and assigns `HUMAN_ENTERED` provenance on the server. Clients cannot select or upgrade provenance; attempts to submit a provenance value are rejected.
 
 Evidence is append-only in this increment and is returned through a bounded timeline ordered by event time and then opaque evidence ID. Event time cannot be later than the application recording time. Imported, retrieved, and model-generated provenance values are reserved for future controlled workflows; model output cannot enter human evidence through this manual endpoint.
 
@@ -238,9 +240,15 @@ The milestone 10 hardening slice exposes only Actuator health with hidden detail
 
 The first milestone 11 slice adds an explicit boundary between generated decision support and accountable conclusions. A caller may propose one immutable draft finding from a `GROUNDED` question with validated citations, supplying a human-edited summary and proposer reference. Insufficient, failed, and still-processing answers are ineligible.
 
-A draft has one terminal transition to `CONFIRMED` or `REJECTED`. Review requires a reviewer reference and rationale, and both proposal and review append immutable audit events. Repeated review and silent editing are rejected. Actor references remain caller-supplied provenance labels until authentication exists; the UI states this limitation. ADR 0008 records the decision.
+A draft has one terminal transition to `CONFIRMED` or `REJECTED`. Review requires the `REVIEWER` or `ADMIN` role and a rationale, and both proposal and review append immutable audit events attributed to the authenticated principal. Repeated review and silent editing are rejected. ADR 0008 records the review lifecycle; ADR 0012 records authenticated attribution and role boundaries.
 
-An investigation closes only after all drafts are resolved and at least one finding is confirmed. The closer supplies a bounded case-level summary and provenance reference; the application records the closure time. Closure is terminal, so new questions, finding actions, and repeated closure are rejected. ADR 0009 records this lifecycle decision.
+An investigation closes only after all drafts are resolved and at least one finding is confirmed. A principal with `INVESTIGATOR` or `ADMIN` supplies a bounded case-level summary; the application derives the closer identity and records the closure time. Closure is terminal, so new questions, finding actions, and repeated closure are rejected. ADR 0009 records this lifecycle decision.
+
+### Authentication and authorization boundary
+
+Milestone 14 places Spring Security in the bootstrap layer because authentication is an application-wide delivery concern rather than an assets, incidents, knowledge, or investigations domain concept. Browser clients use a server-managed session and CSRF protection. Static login assets and health probes are public; business APIs, generated API documentation, and document content require authentication.
+
+Local configuration supplies synthetic `INVESTIGATOR`, `REVIEWER`, and `ADMIN` users. Controllers derive human attribution from the authenticated principal before invoking module use cases, so business modules retain opaque actor references without depending on Spring Security types. The in-memory identity store is deliberately replaceable by OIDC for hosted use; it is not a user-management or multi-tenant authorization design. ADR 0012 records the decision.
 
 ### AI concepts used in the MVP
 
@@ -453,9 +461,22 @@ Each numbered item should be a small, independently reviewable change. Do not co
    - Package the production React client and Spring Boot backend in one non-root image.
    - Start QIP and PostgreSQL through Compose while retaining host Ollama as an optional local adapter.
 
-14. **Portfolio and release readiness**
-   - Present the product, safety posture, architecture trade-offs, and credential-free demonstration from the repository landing page.
-   - Verify the production image in CI and publish semantic-tagged JAR and GHCR artifacts with checksums and provenance attestations.
+The v0.1.0 release-readiness pass presents the product and safety posture from the repository landing page, verifies the production image in CI, and publishes semantic-tagged JAR and GHCR artifacts with checksums and provenance attestations.
+
+14. **Authenticated users and trustworthy attribution**
+   - Add session-based browser authentication with configurable synthetic local users and CSRF protection.
+   - Derive human actor references from the principal and enforce reviewer and investigator role boundaries.
+
+15. **Repeatable RAG evaluation**
+   - Turn the deterministic retrieval fixture into a complete, versioned grounded-answer quality gate.
+
+16. **Operational observability**
+   - Add safe structured correlation, latency/outcome metrics, and a bounded troubleshooting workflow.
+
+17. **Hosted portfolio deployment**
+   - Select and automate a modest deployment through an ADR without assuming distributed architecture.
+
+The scope and acceptance goals for milestones 14–17 are maintained in [the post-v0.1 roadmap](roadmap.md).
 
 ## 11. Architectural decision policy
 

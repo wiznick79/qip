@@ -6,6 +6,13 @@ describe("QIP workspace", () => {
     window.history.replaceState(null, "", "#/assets");
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
+      if (url === "/api/session") return jsonResponse({
+        authenticated: true,
+        username: "wiznick79",
+        roles: ["ADMIN", "INVESTIGATOR", "REVIEWER"],
+        csrfHeaderName: "X-CSRF-TOKEN",
+        csrfToken: "test-csrf-token",
+      });
       if (url === "/api/incidents/incident-1") return jsonResponse(incident);
       if (url.startsWith("/api/incidents/incident-1/observations")) return jsonResponse({ items: [], page: 0, size: 10, totalElements: 0 });
       if (url.startsWith("/api/incidents/incident-1/evidence")) return jsonResponse({ items: [], page: 0, size: 10, totalElements: 0 });
@@ -51,9 +58,19 @@ describe("QIP workspace", () => {
     expect(await screen.findByRole("heading", { name: "Grounded questions" })).toBeInTheDocument();
   });
 
-  it("states the human confirmation boundary", () => {
+  it("uses the dashboard as the application home", async () => {
+    window.history.replaceState(null, "", "#/");
     render(<App />);
-    expect(screen.getByText(/AI findings will remain suggestions/i)).toBeInTheDocument();
+
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /report an incident/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open investigations/i })).toBeInTheDocument();
+  });
+
+  it("states the human confirmation boundary", async () => {
+    render(<App />);
+    expect(await screen.findByText(/AI findings will remain suggestions/i)).toBeInTheDocument();
+    expect(screen.getByText("wiznick79")).toBeInTheDocument();
   });
 
   it("opens a bookmarkable incident investigation URL", async () => {
@@ -70,7 +87,7 @@ describe("QIP workspace", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Synthetic vibration" })).toBeInTheDocument();
-    expect(screen.getByText(/not sent to the AI model/i)).toBeInTheDocument();
+    expect(screen.getByText(/not automatically included in AI searches/i)).toBeInTheDocument();
     expect(window.location.hash).toBe("#/incidents?incident=incident-1");
   });
 

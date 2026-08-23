@@ -1,5 +1,6 @@
 package io.github.wiznick79.qip.investigations;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,7 +27,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 @AutoConfigureMockMvc
-@SpringBootTest
+@SpringBootTest(properties = "qip.security.enabled=false")
 @TestPropertySource(properties = "qip.documents.storage-directory=target/test-investigation-storage")
 class InvestigationApiIntegrationTests {
 
@@ -98,6 +99,7 @@ class InvestigationApiIntegrationTests {
         String questionId = JsonPath.read(questionResponse, "$.id");
 
         String findingResponse = mockMvc.perform(post("/api/investigations/{investigationId}/findings", investigationId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -118,6 +120,7 @@ class InvestigationApiIntegrationTests {
         String findingId = JsonPath.read(findingResponse, "$.id");
 
         mockMvc.perform(post("/api/investigations/{investigationId}/closure", investigationId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -133,6 +136,7 @@ class InvestigationApiIntegrationTests {
                                 "/api/investigations/{investigationId}/findings/{findingId}/reviews",
                                 investigationId,
                                 findingId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -151,6 +155,7 @@ class InvestigationApiIntegrationTests {
                                 "/api/investigations/{investigationId}/findings/{findingId}/reviews",
                                 investigationId,
                                 findingId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -162,6 +167,7 @@ class InvestigationApiIntegrationTests {
                 .andExpect(status().isConflict());
 
         mockMvc.perform(post("/api/investigations/{investigationId}/closure", investigationId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -233,6 +239,7 @@ class InvestigationApiIntegrationTests {
 
         String questionId = JsonPath.read(response, "$.id");
         mockMvc.perform(post("/api/investigations/{investigationId}/findings", investigationId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -245,6 +252,7 @@ class InvestigationApiIntegrationTests {
                 .andExpect(jsonPath("$.detail").value("Only a grounded answer with citations can become a finding"));
 
         mockMvc.perform(post("/api/investigations/{investigationId}/closure", investigationId)
+                        .with(user("wiznick79").roles("ADMIN", "INVESTIGATOR", "REVIEWER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

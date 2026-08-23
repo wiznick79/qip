@@ -6,6 +6,4 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 
 record AppendObservationRequest(
-        @NotBlank @Size(max = 4000) String text,
-        @NotBlank @Size(max = 120) String authorReference,
-        @NotNull Instant observedAt) {}
+        @NotBlank @Size(max = 4000) String text, @NotNull Instant observedAt) {}

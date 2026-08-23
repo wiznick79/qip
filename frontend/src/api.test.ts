@@ -26,7 +26,30 @@ describe("API client", () => {
 
     const init = fetchMock.mock.calls[0][1];
     expect(init?.body).toBeInstanceOf(FormData);
-    expect(init?.headers).toBeUndefined();
+    expect(new Headers(init?.headers).has("Content-Type")).toBe(false);
+  });
+
+  it("uses the server CSRF token for login and state-changing requests", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input) === "/api/session") {
+        return jsonResponse({
+          authenticated: false,
+          username: null,
+          roles: [],
+          csrfHeaderName: "X-CSRF-TOKEN",
+          csrfToken: "csrf-14",
+        });
+      }
+      return new Response(null, { status: 204 });
+    });
+
+    await api.getSession();
+    await api.login("qip-investigator", "local-password");
+
+    const login = fetchMock.mock.calls.find(([path]) => String(path) === "/api/session/login");
+    const headers = new Headers(login?.[1]?.headers);
+    expect(headers.get("X-CSRF-TOKEN")).toBe("csrf-14");
+    expect(headers.get("Content-Type")).toBe("application/x-www-form-urlencoded");
   });
 });
 

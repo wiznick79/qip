@@ -7,5 +7,4 @@ import jakarta.validation.constraints.Size;
 
 record ReviewFindingRequest(
         @NotNull FindingStatus decision,
-        @NotBlank @Size(max = 120) String reviewerReference,
         @NotBlank @Size(max = 1000) String rationale) {}

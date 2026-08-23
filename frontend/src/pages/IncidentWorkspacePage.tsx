@@ -55,7 +55,7 @@ export function IncidentWorkspacePage({
     setSaving("observation"); setError(null);
     try {
       await api.appendObservation(incidentId, {
-        text: String(form.get("text")), authorReference: String(form.get("authorReference")),
+        text: String(form.get("text")),
         observedAt: new Date(String(form.get("observedAt"))).toISOString(),
       });
       formElement.reset();
@@ -71,7 +71,7 @@ export function IncidentWorkspacePage({
       await api.appendEvidence(incidentId, {
         type: String(form.get("type")) as EvidenceType, summary: String(form.get("summary")),
         sourceReference: String(form.get("sourceReference")),
-        eventAt: new Date(String(form.get("eventAt"))).toISOString(), submittedBy: String(form.get("submittedBy")),
+        eventAt: new Date(String(form.get("eventAt"))).toISOString(),
       });
       formElement.reset();
       const appendedPage = Math.floor((evidence?.totalElements ?? 0) / PAGE_SIZE);
@@ -100,14 +100,14 @@ export function IncidentWorkspacePage({
         <p>{incident.description || "No incident description provided."}</p>
         <button className="primary-button" disabled={saving === "investigation"} onClick={openInvestigation}>{saving === "investigation" ? "Opening…" : incident.status === "REPORTED" ? "Start investigation" : incident.status === "INVESTIGATING" ? "Open investigation" : "View investigation history"}</button>
       </section>
-      <aside className="context-boundary"><strong>Human incident record</strong><p>These append-only entries preserve caller-supplied provenance. They are not authenticated identities and are not sent to the AI model in Milestone 13.</p></aside>
+      <aside className="context-boundary"><strong>Case record</strong><p>Observations and evidence stay with this incident and are not automatically included in AI searches.</p></aside>
       <div className="case-columns">
         <TimelinePanel title="Observations" detail="Human-authored notes in observation-time order." page={observations} currentPage={observationPage} setPage={setObservationPage} render={(item) => <article className="timeline-entry" key={item.id}><span>OBSERVATION</span><p>{item.text}</p><footer>{item.authorReference} · observed {formatDate(item.observedAt)} · recorded {formatDate(item.recordedAt)}</footer></article>} />
         <TimelinePanel title="Evidence" detail="Source-attributed items considered during the investigation." page={evidence} currentPage={evidencePage} setPage={setEvidencePage} render={(item) => <article className="timeline-entry evidence-entry" key={item.id}><span>{item.type.replaceAll("_", " ")}</span><p>{item.summary}</p><strong>{item.sourceReference}</strong><footer>{item.provenance.replaceAll("_", " ")} · {item.submittedBy} · event {formatDate(item.eventAt)}</footer></article>} />
       </div>
       <div className="case-columns case-forms">
-        <section className="panel"><div className="panel-heading"><span className="step">13A</span><div><h2>Add observation</h2><p>Corrections are new entries, never silent edits.</p></div></div><form onSubmit={appendObservation}><label>Observation<textarea name="text" required maxLength={4000} rows={4} placeholder="Record what was directly observed." /></label><label>Observed at<input name="observedAt" type="datetime-local" required defaultValue={localDateTimeNow()} /></label><label>Author reference<input name="authorReference" required maxLength={120} defaultValue="wiznick79" /><span className="field-note">Local provenance label; authentication is not enabled.</span></label><button className="primary-button" disabled={saving === "observation"}>{saving === "observation" ? "Recording…" : "Record observation"}</button></form></section>
-        <section className="panel"><div className="panel-heading"><span className="step">13B</span><div><h2>Add evidence</h2><p>Record origin without claiming a confirmed cause.</p></div></div><form onSubmit={appendEvidence}><label>Type<select name="type" defaultValue="MEASUREMENT">{evidenceTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select></label><label>Summary<textarea name="summary" required maxLength={1000} rows={3} placeholder="Describe the evidence and its relevance without overstating it." /></label><label>Source reference<input name="sourceReference" required maxLength={500} placeholder="e.g. Gauge PT-14, operator log 08:45" /></label><label>Event time<input name="eventAt" type="datetime-local" required defaultValue={localDateTimeNow()} /></label><label>Submitted by<input name="submittedBy" required maxLength={120} defaultValue="wiznick79" /><span className="field-note">The server assigns HUMAN_ENTERED provenance.</span></label><button className="primary-button" disabled={saving === "evidence"}>{saving === "evidence" ? "Recording…" : "Record evidence"}</button></form></section>
+        <section className="panel"><div className="panel-heading"><span className="step">02A</span><div><h2>Add observation</h2><p>Corrections are new entries, never silent edits.</p></div></div><form onSubmit={appendObservation}><label>Observation<textarea name="text" required maxLength={4000} rows={4} placeholder="Record what was directly observed." /></label><label>Observed at<input name="observedAt" type="datetime-local" required defaultValue={localDateTimeNow()} /></label><button className="primary-button" disabled={saving === "observation"}>{saving === "observation" ? "Recording…" : "Record observation"}</button></form></section>
+        <section className="panel"><div className="panel-heading"><span className="step">02B</span><div><h2>Add evidence</h2><p>Record origin without claiming a confirmed cause.</p></div></div><form onSubmit={appendEvidence}><label>Type<select name="type" defaultValue="MEASUREMENT">{evidenceTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select></label><label>Summary<textarea name="summary" required maxLength={1000} rows={3} placeholder="Describe the evidence and its relevance without overstating it." /></label><label>Source reference<input name="sourceReference" required maxLength={500} placeholder="e.g. Gauge PT-14, operator log 08:45" /></label><label>Event time<input name="eventAt" type="datetime-local" required defaultValue={localDateTimeNow()} /></label><button className="primary-button" disabled={saving === "evidence"}>{saving === "evidence" ? "Recording…" : "Record evidence"}</button></form></section>
       </div>
     </>}
   </section>;

@@ -13,6 +13,5 @@ record AppendEvidenceRequest(
         @NotBlank @Size(max = 1000) String summary,
         @NotBlank @Size(max = 500) String sourceReference,
         @NotNull Instant eventAt,
-        @NotBlank @Size(max = 120) String submittedBy,
 
         @Null(message = "must be omitted; provenance is assigned by the server") EvidenceProvenance provenance) {}

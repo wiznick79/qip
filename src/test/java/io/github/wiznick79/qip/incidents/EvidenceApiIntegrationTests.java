@@ -1,5 +1,6 @@
 package io.github.wiznick79.qip.incidents;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -24,7 +25,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 @AutoConfigureMockMvc
-@SpringBootTest
+@SpringBootTest(properties = "qip.security.enabled=false")
 class EvidenceApiIntegrationTests {
 
     private static final DockerImageName PGVECTOR_IMAGE =
@@ -106,6 +107,7 @@ class EvidenceApiIntegrationTests {
         String missingIncidentId = "00000000-0000-0000-0000-000000000999";
 
         mockMvc.perform(post("/api/incidents/{incidentId}/evidence", missingIncidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(evidenceRequest(
                                 "MEASUREMENT",
@@ -125,6 +127,7 @@ class EvidenceApiIntegrationTests {
         String futureTime = Instant.now().plusSeconds(3600).toString();
 
         mockMvc.perform(post("/api/incidents/{incidentId}/evidence", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(evidenceRequest(
                                 "MEASUREMENT",
@@ -143,9 +146,10 @@ class EvidenceApiIntegrationTests {
         String incidentId = createIncident();
 
         mockMvc.perform(post("/api/incidents/{incidentId}/evidence", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"summary":" ","sourceReference":" ","submittedBy":" "}
+                                {"summary":" ","sourceReference":" "}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -153,8 +157,7 @@ class EvidenceApiIntegrationTests {
                 .andExpect(jsonPath("$.errors.type").isNotEmpty())
                 .andExpect(jsonPath("$.errors.summary").isNotEmpty())
                 .andExpect(jsonPath("$.errors.sourceReference").isNotEmpty())
-                .andExpect(jsonPath("$.errors.eventAt").isNotEmpty())
-                .andExpect(jsonPath("$.errors.submittedBy").isNotEmpty());
+                .andExpect(jsonPath("$.errors.eventAt").isNotEmpty());
     }
 
     @Test
@@ -162,6 +165,7 @@ class EvidenceApiIntegrationTests {
         String incidentId = createIncident();
 
         mockMvc.perform(post("/api/incidents/{incidentId}/evidence", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -213,6 +217,7 @@ class EvidenceApiIntegrationTests {
             String incidentId, String type, String summary, String sourceReference, String eventAt, String submittedBy)
             throws Exception {
         return mockMvc.perform(post("/api/incidents/{incidentId}/evidence", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(evidenceRequest(type, summary, sourceReference, eventAt, submittedBy)))
                 .andExpect(status().isCreated())

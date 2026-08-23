@@ -19,7 +19,7 @@ _Grounded investigation workspace using fictional equipment and manuals. Local O
 | --- | --- |
 | Backend | Java 21, Spring Boot, package-by-module design, Spring Modulith verification, REST problem details, Flyway, JPA, PostgreSQL, and pgvector |
 | AI safety | Bounded retrieval, untrusted-document handling, versioned prompts, citation validation, insufficient-evidence behavior, deterministic test adapters, and optional local Ollama models |
-| Human workflow | Incident observations and evidence, draft findings, independent confirmation or rejection with rationale, immutable review history, and explicit case closure |
+| Human workflow | Authenticated attribution, role-bounded review and closure, incident observations and evidence, immutable review history, and explicit case closure |
 | Frontend | React and TypeScript investigation workspace with paginated case navigation, upload status, grounded-answer states, citations, and review controls |
 | Delivery | Testcontainers integration tests, frontend verification, GitHub Actions, a non-root multi-stage image, one-command Compose startup, and attested tag releases |
 
@@ -33,11 +33,11 @@ docker compose up --build -d --wait
 .\scripts\run-synthetic-investigation.ps1 -ReindexDocuments
 ```
 
-Open `http://localhost:8080/` to inspect the incident record, evidence timeline, grounded answer, cited manual passage, reviewed finding, and closure state. All machines, incidents, measurements, and manuals are visibly synthetic.
+Open `http://localhost:8080/` and sign in as `qip-admin` / `qip-admin-local-only` to inspect the incident record, evidence timeline, grounded answer, cited manual passage, reviewed finding, and closure state. All machines, incidents, measurements, manuals, and default credentials are visibly synthetic.
 
 ### Deliberate boundaries
 
-This release candidate is a local portfolio MVP, not production machinery-control software. Authentication, multi-tenancy, hosted deployment, OCR, enterprise integrations, and production observability are intentionally deferred. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
+This is a local portfolio application, not production machinery-control software. Its configurable in-memory users demonstrate authenticated attribution and role boundaries; enterprise identity, user administration, multi-tenancy, hosted deployment, OCR, enterprise integrations, and production observability remain deferred. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
 
 Start with:
 
@@ -54,6 +54,8 @@ Start with:
 - [ADR 0009: investigation closure after human review](docs/adr/0009-close-investigations-only-after-human-review.md)
 - [ADR 0010: single-container web application packaging](docs/adr/0010-package-the-web-client-and-backend-in-one-container.md)
 - [ADR 0011: attested GitHub releases and GHCR images](docs/adr/0011-publish-attested-github-releases.md)
+- [ADR 0012: authenticated human actions](docs/adr/0012-authenticate-human-actions-with-spring-security.md)
+- [Post-v0.1 roadmap](docs/roadmap.md)
 - [Local MVP demonstration](docs/demo.md)
 - [Release process](docs/releasing.md)
 - [Changelog](CHANGELOG.md)
@@ -95,6 +97,16 @@ Open `http://localhost:8080/`. Subsequent starts can omit `--build`:
 ```powershell
 docker compose up -d --wait
 ```
+
+The local sign-in accounts are deliberately synthetic and configurable:
+
+| Username | Development-only password | Roles |
+| --- | --- | --- |
+| `qip-investigator` | `qip-investigator-local-only` | `INVESTIGATOR` |
+| `qip-reviewer` | `qip-reviewer-local-only` | `REVIEWER` |
+| `qip-admin` | `qip-admin-local-only` | `ADMIN`, `INVESTIGATOR`, `REVIEWER` |
+
+Copy `.env.example` to `.env` to change every credential before any non-local use. These in-memory accounts are a portfolio/local-development identity boundary, not a production identity service.
 
 View application logs or stop the stack with:
 
@@ -200,7 +212,7 @@ POST /api/investigations/{investigationId}/closure
 
 Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. The default answer adapter is deterministic and offline. The opt-in `ollama` profile supplies local `EmbeddingModel` and `ChatModel` beans without API keys.
 
-A grounded answer with validated citations can be explicitly proposed as a `DRAFT` finding. A separate review action records `CONFIRMED` or `REJECTED`, the reviewer reference, a mandatory rationale, and an append-only audit event. Insufficient or failed answers cannot become findings, and reviewed findings cannot be overwritten. Actor references remain caller-supplied provenance labels until authentication is introduced.
+A grounded answer with validated citations can be explicitly proposed as a `DRAFT` finding. A separate review action records `CONFIRMED` or `REJECTED`, the authenticated reviewer, a mandatory rationale, and an append-only audit event. Insufficient or failed answers cannot become findings, and reviewed findings cannot be overwritten. Human attribution is derived from the authenticated session rather than trusted from request bodies; review requires `REVIEWER` or `ADMIN` and closure requires `INVESTIGATOR` or `ADMIN`.
 
 An investigation can be closed only after every draft is resolved and at least one finding is confirmed. Closure records an immutable human-authored summary, closer reference, and application timestamp. A closed investigation rejects new questions, finding actions, and repeated closure.
 
@@ -247,9 +259,9 @@ npm run dev
 
 Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
-The web client covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
+The web client opens on a compact dashboard with workflow totals, recent incidents, and direct actions. It also covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
 
-The repository contains the local MVP implemented through Milestone 14, including explicit finding review, terminal investigation closure, paginated case navigation, deliberate incident lifecycle actions, provenance-aware incident records, reproducible container packaging, and tag-driven artifact publication. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without credentials.
+The v0.1.0 release established the complete local MVP, reproducible container packaging, and tag-driven artifact publication. Milestone 14 now adds authenticated attribution and role-bounded human decisions without changing the modular-monolith boundary. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without provider credentials.
 
 API and operational endpoints are available while QIP is running:
 
@@ -265,13 +277,13 @@ Only health is exposed through Actuator, and component details are hidden. Maven
 
 ## Synthetic demo data
 
-The repository includes three fictional machines and matching three-page PDF manuals for local testing. With QIP running on port 8080, load them through the public API using PowerShell 7:
+The repository includes three fictional machines and matching three-page PDF manuals for local testing. With QIP running on port 8080, load them through the authenticated API using Windows PowerShell 5 or newer:
 
 ```powershell
 .\scripts\load-synthetic-demo.ps1
 ```
 
-Pass `-BaseUrl` when the application uses another address. The loader skips assets that already have the same synthetic external reference, while document uploads reuse existing content through QIP's checksum policy. The source manifest is `samples/machines.json`; generated documents live under `output/pdf/`. Every name, value, scenario, and procedure is invented and must not be applied to real equipment.
+Pass `-BaseUrl` when the application uses another address. The scripts use the configured admin credentials from `QIP_ADMIN_USERNAME` and `QIP_ADMIN_PASSWORD`, defaulting to the development-only values above; `-Username` and `-Password` override them. The loader skips assets that already have the same synthetic external reference, while document uploads reuse existing content through QIP's checksum policy. The source manifest is `samples/machines.json`; generated documents live under `output/pdf/`. Every name, value, scenario, and procedure is invented and must not be applied to real equipment.
 
 Run the complete scripted case with:
 

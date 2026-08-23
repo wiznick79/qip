@@ -25,7 +25,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 @AutoConfigureMockMvc
-@SpringBootTest
+@SpringBootTest(properties = "qip.security.enabled=false")
 class IncidentApiIntegrationTests {
 
     private static final DockerImageName PGVECTOR_IMAGE =
