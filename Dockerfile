@@ -9,15 +9,17 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM maven:3.9.15-eclipse-temurin-21-alpine AS application-build
+FROM eclipse-temurin:21-jdk-alpine AS application-build
 ARG QIP_VERSION
 WORKDIR /workspace
+COPY .mvn/ .mvn/
+COPY mvnw ./
 COPY pom.xml ./
-RUN mvn -B -Drevision="${QIP_VERSION}" -DskipTests dependency:go-offline
+RUN ./mvnw -B -Drevision="${QIP_VERSION}" -DskipTests dependency:go-offline
 COPY src/ src/
 COPY config/ config/
 COPY --from=frontend-build /workspace/frontend/dist frontend/dist/
-RUN mvn -B -Drevision="${QIP_VERSION}" -DskipTests package
+RUN ./mvnw -B -Drevision="${QIP_VERSION}" -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine AS runtime
 ARG QIP_VERSION
