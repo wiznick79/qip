@@ -9,7 +9,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM maven:3.9.15-eclipse-temurin-21-alpine AS application-build
+FROM maven:3.9.15-eclipse-temurin-26-alpine AS application-build
 ARG QIP_VERSION
 WORKDIR /workspace
 COPY pom.xml ./
