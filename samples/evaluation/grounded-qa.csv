@@ -1,4 +1,0 @@
-id,document_file,question,expected_status,expected_page,minimum_score,required_terms
-atlas-return-filter,atlas-hp40-service-manual.pdf,Oil temperature is 66 C and ram retract time is 5.4 seconds with 3.1 bar return-filter differential - what should be inspected first?,GROUNDED,2,0.10,return filter|3.1 bar
-cobalt-cavitation,cobalt-cx22-maintenance-guide.pdf,There is gravel-like noise with 5.2 mm/s vibration and 0.28 bar inlet pressure - what is the leading hypothesis?,GROUNDED,2,0.10,cavitation|0.28 bar
-pioneer-tracking,pioneer-pk7-operations-handbook.pdf,E17 repeated with 8 mm right belt offset and 6 mm take-up mismatch - what adjustment is supported?,GROUNDED,2,0.10,quarter-turn|take-up

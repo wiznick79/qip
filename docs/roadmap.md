@@ -26,6 +26,8 @@ Turn the existing synthetic retrieval fixture into a versioned quality gate for 
 - Produce a human-readable evaluation report without requiring a live model in the default build.
 - Keep optional Ollama evaluation separate, inexpensive, and explicitly enabled.
 
+Implemented with versioned fixture `v1`, a deterministic full-pipeline quality gate and Markdown report, adversarial output cases, and an explicitly enabled three-case Ollama comparison.
+
 ## Milestone 16 — operational observability
 
 Make ingestion and model behavior diagnosable without logging document bodies, prompts, model responses, or secrets.

@@ -291,4 +291,10 @@ Run the complete scripted case with:
 .\scripts\run-synthetic-investigation.ps1 -ReindexDocuments
 ```
 
-The versioned retrieval regression set is under `samples/evaluation/`. The default build evaluates it with the deterministic offline embedding adapter; see [the demo walkthrough](docs/demo.md) for the full local flow.
+The versioned grounded-answer quality gate is under `samples/evaluation/`. It measures retrieval hit rate, citation validity, answer-status classification, context bounds, and adversarial handling across the complete offline pipeline:
+
+```powershell
+.\scripts\run-rag-evaluation.ps1
+```
+
+The Markdown report is written to `target/rag-evaluation/report.md`. A running local Ollama installation can be compared explicitly with `.\scripts\run-rag-evaluation.ps1 -Ollama`; this live path is excluded from the default build and never downloads models automatically. See [the evaluation-set documentation](samples/evaluation/README.md) and [demo walkthrough](docs/demo.md).

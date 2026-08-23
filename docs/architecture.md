@@ -1,6 +1,6 @@
 # Architecture and MVP
 
-Status: v0.1.0 local MVP released; milestone 14 authentication in progress
+Status: v0.1.0 local MVP released; milestones 14 and 15 complete
 Last updated: 2026-08-23
 
 ## 1. Product definition
@@ -249,6 +249,12 @@ An investigation closes only after all drafts are resolved and at least one find
 Milestone 14 places Spring Security in the bootstrap layer because authentication is an application-wide delivery concern rather than an assets, incidents, knowledge, or investigations domain concept. Browser clients use a server-managed session and CSRF protection. Static login assets and health probes are public; business APIs, generated API documentation, and document content require authentication.
 
 Local configuration supplies synthetic `INVESTIGATOR`, `REVIEWER`, and `ADMIN` users. Controllers derive human attribution from the authenticated principal before invoking module use cases, so business modules retain opaque actor references without depending on Spring Security types. The in-memory identity store is deliberately replaceable by OIDC for hosted use; it is not a user-management or multi-tenant authorization design. ADR 0012 records the decision.
+
+### Repeatable RAG evaluation
+
+Milestone 15 promotes the synthetic retrieval baseline into a versioned end-to-end quality gate. Fixture `v1` exercises document upload and indexing, deterministic retrieval, bounded prompt construction, answer-status classification, citation allow-listing, persistence, and the public question API. The default build requires every measured retrieval hit, grounded citation, expected status, context bound, and adversarial boundary to pass, then writes a Markdown report under `target/rag-evaluation/`.
+
+Adversarial cases inject document instructions, a generated unsupported claim, and an invented citation. The answer adapter used to provoke those outputs exists only in test scope; production validation remains the system under test. A separate environment-gated Ollama comparison uses the three baseline cases and records configured model identifiers. It requires explicit invocation, performs no model downloads, and is not part of normal CI. This evaluation harness adds no production dependency or runtime service.
 
 ### AI concepts used in the MVP
 

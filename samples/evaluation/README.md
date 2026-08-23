@@ -1,7 +1,21 @@
-# Synthetic grounded-QA evaluation set
+# Synthetic grounded-answer evaluation
 
-`grounded-qa.csv` is the small, versioned MVP regression set for retrieval. Every case points to one fictional PDF, an expected source page, a minimum deterministic relevance score, and terms that must occur in the highest-ranked passage.
+The current immutable case set is [`v1/rag-cases.csv`](v1/rag-cases.csv). A new directory is required for a material schema or scenario change; do not silently rewrite historical expectations to make a provider pass.
 
-The default build evaluates the offline `deterministic-hash-v1` adapter so CI needs no network, model download, credentials, or paid calls. This is a lexical retrieval baseline, not a claim about answer quality. Insufficient-evidence, citation allow-listing, malformed output, prompt injection, timeouts, and provider failure remain covered by focused orchestration/adapter tests.
+The seven offline cases cover three baseline retrieval questions, prompt injection embedded in an untrusted document, an unsupported generated claim, an invented citation, and insufficient retrieval. Expected pages, minimum relevance scores, and required evidence terms keep retrieval changes reviewable.
 
-When comparing Ollama or another provider, use the same case IDs and record model tags, retrieval results, latency, answer status, and citation validity. Do not silently change expected pages or terms to make a model pass; review changes alongside the synthetic manuals.
+Run the deterministic quality gate with:
+
+```powershell
+.\scripts\run-rag-evaluation.ps1
+```
+
+It exercises upload, extraction, indexing, retrieval, bounded prompt construction, answer classification, citation allow-listing, persistence, and the public question API. It writes a human-readable report to `target/rag-evaluation/report.md`. The default build runs the same test without a network, model download, credentials, or paid calls.
+
+The optional Ollama comparison is deliberately separate and limited to the three baseline cases:
+
+```powershell
+.\scripts\run-rag-evaluation.ps1 -Ollama
+```
+
+It requires a running local Ollama service and the explicitly configured chat and embedding models. Automatic model downloads remain disabled. Its report is `target/rag-evaluation/ollama-report.md`.
