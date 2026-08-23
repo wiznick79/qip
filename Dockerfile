@@ -2,14 +2,14 @@
 
 ARG QIP_VERSION=0.1.0-SNAPSHOT
 
-FROM node:22.14.0-alpine AS frontend-build
+FROM node:24.19.0-alpine AS frontend-build
 WORKDIR /workspace/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM maven:3.9.11-eclipse-temurin-21-alpine AS application-build
+FROM maven:3.9.15-eclipse-temurin-21-alpine AS application-build
 ARG QIP_VERSION
 WORKDIR /workspace
 COPY pom.xml ./

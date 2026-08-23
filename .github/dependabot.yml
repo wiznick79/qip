@@ -29,5 +29,9 @@ updates:
     schedule:
       interval: weekly
     groups:
-      container-images:
-        patterns: ["*"]
+      node-build-image:
+        patterns: ["node"]
+      maven-build-image:
+        patterns: ["maven"]
+      java-runtime-image:
+        patterns: ["eclipse-temurin"]
