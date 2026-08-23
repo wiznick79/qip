@@ -129,6 +129,36 @@ describe("Investigation workspace", () => {
     expect(await screen.findByText(/Incident status:/)).toHaveTextContent("RESOLVED");
   });
 
+  it("does not offer finding review to an investigator without the reviewer role", async () => {
+    render(<InvestigationsPage session={sessionWithRoles("INVESTIGATOR")} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
+    await screen.findByText("No questions yet");
+    fireEvent.change(screen.getByLabelText("Question"), { target: { value: "What should be inspected?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask with evidence" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Propose as finding" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create draft finding" }));
+
+    expect(await screen.findByText("You do not have permission to review this finding.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Record review decision" })).not.toBeInTheDocument();
+  });
+
+  it("does not offer investigation closure to a reviewer without the investigator role", async () => {
+    render(<InvestigationsPage session={sessionWithRoles("REVIEWER")} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
+    await screen.findByText("No questions yet");
+    fireEvent.change(screen.getByLabelText("Question"), { target: { value: "What should be inspected?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask with evidence" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Propose as finding" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create draft finding" }));
+    await screen.findByText("DRAFT");
+    fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "The cited source supports inspection." } });
+    fireEvent.click(screen.getByRole("button", { name: "Record review decision" }));
+
+    expect(await screen.findByText("You do not have permission to close this investigation.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close investigation" })).not.toBeInTheDocument();
+  });
   it("separates recent active incidents from searchable history", async () => {
     const viewAll = vi.fn();
     render(<InvestigationsPage onViewAllIncidents={viewAll} />);
@@ -146,6 +176,15 @@ describe("Investigation workspace", () => {
   });
 });
 
+function sessionWithRoles(...roles: string[]) {
+  return {
+    authenticated: true,
+    username: "wiznick79",
+    roles,
+    csrfHeaderName: "X-CSRF-TOKEN",
+    csrfToken: "test-csrf-token",
+  };
+}
 function json(value: unknown) {
   return new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json" } });
 }

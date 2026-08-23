@@ -67,6 +67,121 @@ describe("QIP workspace", () => {
     expect(screen.getByRole("button", { name: /open investigations/i })).toBeInTheDocument();
   });
 
+  it("signs in with valid credentials and opens the dashboard", async () => {
+    let authenticated = false;
+    vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/session/login" && init?.method === "POST") {
+        authenticated = true;
+        return new Response(null, { status: 204 });
+      }
+      if (url === "/api/session") return jsonResponse(authenticated
+        ? {
+            authenticated: true,
+            username: "qip-investigator",
+            roles: ["INVESTIGATOR"],
+            csrfHeaderName: "X-CSRF-TOKEN",
+            csrfToken: "signed-in-csrf-token",
+          }
+        : {
+            authenticated: false,
+            username: null,
+            roles: [],
+            csrfHeaderName: "X-CSRF-TOKEN",
+            csrfToken: "anonymous-csrf-token",
+          });
+      return new Response(null, { status: 404 });
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText("Username"), { target: { value: "qip-investigator" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "local-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByText("qip-investigator")).toBeInTheDocument();
+  });
+
+  it("shows the server error when credentials are invalid", async () => {
+    vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/session") return jsonResponse({
+        authenticated: false,
+        username: null,
+        roles: [],
+        csrfHeaderName: "X-CSRF-TOKEN",
+        csrfToken: "anonymous-csrf-token",
+      });
+      if (url === "/api/session/login" && init?.method === "POST") {
+        return new Response(JSON.stringify({
+          title: "Authentication failed",
+          detail: "The username or password is incorrect.",
+          status: 401,
+        }), { status: 401, headers: { "Content-Type": "application/problem+json" } });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText("Username"), { target: { value: "qip-investigator" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("The username or password is incorrect.");
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("shows the sign-in screen when the restored session has expired", async () => {
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      if (String(input) === "/api/session") return jsonResponse({
+        authenticated: false,
+        username: null,
+        roles: [],
+        csrfHeaderName: "X-CSRF-TOKEN",
+        csrfToken: "anonymous-csrf-token",
+      });
+      return new Response(null, { status: 404 });
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Primary navigation" })).not.toBeInTheDocument();
+  });
+  it("returns to the sign-in screen after logout", async () => {
+    let authenticated = true;
+    vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/session/logout" && init?.method === "POST") {
+        authenticated = false;
+        return new Response(null, { status: 204 });
+      }
+      if (url === "/api/session") return jsonResponse(authenticated
+        ? {
+            authenticated: true,
+            username: "qip-investigator",
+            roles: ["INVESTIGATOR"],
+            csrfHeaderName: "X-CSRF-TOKEN",
+            csrfToken: "authenticated-csrf-token",
+          }
+        : {
+            authenticated: false,
+            username: null,
+            roles: [],
+            csrfHeaderName: "X-CSRF-TOKEN",
+            csrfToken: "anonymous-csrf-token",
+          });
+      if (url.startsWith("/api/assets")) return jsonResponse({ items: [], page: 0, size: 100, totalElements: 0 });
+      if (url.startsWith("/api/incidents")) return jsonResponse({ items: [], page: 0, size: 100, totalElements: 0 });
+      return new Response(null, { status: 404 });
+    });
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByText("qip-investigator")).not.toBeInTheDocument();
+  });
   it("states the human confirmation boundary", async () => {
     render(<App />);
     expect(await screen.findByText(/AI findings will remain suggestions/i)).toBeInTheDocument();
