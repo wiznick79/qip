@@ -15,13 +15,13 @@ import org.junit.jupiter.api.Test;
 
 class SyntheticRetrievalEvaluationTests {
 
-    private static final Path EVALUATION_SET = Path.of("samples", "evaluation", "grounded-qa.csv");
+    private static final Path EVALUATION_SET = Path.of("samples", "evaluation", "v1", "rag-cases.csv");
     private static final Path DOCUMENTS = Path.of("output", "pdf");
 
     @Test
     void retrievesTheExpectedEvidenceForEveryVersionedSyntheticCase() throws Exception {
         List<EvaluationCase> cases = readCases();
-        assertThat(cases).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(cases).hasSize(3);
 
         var chunker = new PassageChunker(800, 120);
         var embeddings = new DeterministicFakeEmbeddingGenerator(64);
@@ -49,10 +49,11 @@ class SyntheticRetrievalEvaluationTests {
         List<String> lines = Files.readAllLines(EVALUATION_SET);
         assertThat(lines).isNotEmpty();
         assertThat(lines.getFirst())
-                .isEqualTo("id,document_file,question,expected_status,expected_page,minimum_score,required_terms");
+                .isEqualTo("id,kind,document_file,question,expected_status,expected_page,minimum_score,required_terms");
         return lines.stream()
                 .skip(1)
                 .filter(line -> !line.isBlank())
+                .filter(line -> line.split(",", -1)[1].equals("GROUNDED"))
                 .map(EvaluationCase::parse)
                 .toList();
     }
@@ -85,6 +86,7 @@ class SyntheticRetrievalEvaluationTests {
 
     private record EvaluationCase(
             String id,
+            String kind,
             String documentFile,
             String question,
             String expectedStatus,
@@ -94,7 +96,7 @@ class SyntheticRetrievalEvaluationTests {
 
         static EvaluationCase parse(String line) {
             String[] fields = line.split(",", -1);
-            if (fields.length != 7) {
+            if (fields.length != 8) {
                 throw new IllegalArgumentException("Invalid evaluation row: " + line);
             }
             return new EvaluationCase(
@@ -102,9 +104,10 @@ class SyntheticRetrievalEvaluationTests {
                     fields[1],
                     fields[2],
                     fields[3],
-                    Integer.parseInt(fields[4]),
-                    Double.parseDouble(fields[5]),
-                    List.of(fields[6].split("\\|")));
+                    fields[4],
+                    Integer.parseInt(fields[5]),
+                    Double.parseDouble(fields[6]),
+                    List.of(fields[7].split("\\|")));
         }
     }
 }
