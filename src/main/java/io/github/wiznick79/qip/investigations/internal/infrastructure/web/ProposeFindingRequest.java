@@ -7,5 +7,4 @@ import java.util.UUID;
 
 record ProposeFindingRequest(
         @NotNull UUID sourceQuestionId,
-        @NotBlank @Size(max = 2000) String summary,
-        @NotBlank @Size(max = 120) String proposedBy) {}
+        @NotBlank @Size(max = 2000) String summary) {}

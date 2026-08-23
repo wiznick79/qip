@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +31,9 @@ class EvidenceController {
 
     @PostMapping
     ResponseEntity<EvidenceResponse> append(
-            @PathVariable UUID incidentId, @Valid @RequestBody AppendEvidenceRequest request) {
+            @PathVariable UUID incidentId,
+            @Valid @RequestBody AppendEvidenceRequest request,
+            Authentication authentication) {
         var item = evidence.append(
                 incidentId,
                 new AppendEvidenceCommand(
@@ -38,7 +41,7 @@ class EvidenceController {
                         request.summary(),
                         request.sourceReference(),
                         request.eventAt(),
-                        request.submittedBy()));
+                        authentication.getName()));
         return ResponseEntity.status(HttpStatus.CREATED).body(EvidenceResponse.from(item));
     }
 

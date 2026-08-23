@@ -9,6 +9,7 @@ import io.github.wiznick79.qip.investigations.internal.application.ReviewFinding
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,28 +50,33 @@ class InvestigationController {
 
     @PostMapping("/investigations/{investigationId}/closure")
     InvestigationResponse close(
-            @PathVariable UUID investigationId, @Valid @RequestBody CloseInvestigationRequest request) {
+            @PathVariable UUID investigationId,
+            @Valid @RequestBody CloseInvestigationRequest request,
+            Authentication authentication) {
         return InvestigationResponse.from(investigations.close(
-                investigationId, new CloseInvestigationCommand(request.summary(), request.closedBy())));
+                investigationId, new CloseInvestigationCommand(request.summary(), authentication.getName())));
     }
 
     @PostMapping("/investigations/{investigationId}/findings")
     @ResponseStatus(HttpStatus.CREATED)
     FindingResponse proposeFinding(
-            @PathVariable UUID investigationId, @Valid @RequestBody ProposeFindingRequest request) {
+            @PathVariable UUID investigationId,
+            @Valid @RequestBody ProposeFindingRequest request,
+            Authentication authentication) {
         return FindingResponse.from(findings.propose(
                 investigationId,
-                new ProposeFindingCommand(request.sourceQuestionId(), request.summary(), request.proposedBy())));
+                new ProposeFindingCommand(request.sourceQuestionId(), request.summary(), authentication.getName())));
     }
 
     @PostMapping("/investigations/{investigationId}/findings/{findingId}/reviews")
     FindingResponse reviewFinding(
             @PathVariable UUID investigationId,
             @PathVariable UUID findingId,
-            @Valid @RequestBody ReviewFindingRequest request) {
+            @Valid @RequestBody ReviewFindingRequest request,
+            Authentication authentication) {
         return FindingResponse.from(findings.review(
                 investigationId,
                 findingId,
-                new ReviewFindingCommand(request.decision(), request.reviewerReference(), request.rationale())));
+                new ReviewFindingCommand(request.decision(), authentication.getName(), request.rationale())));
     }
 }

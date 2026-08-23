@@ -22,11 +22,11 @@ describe("Incident evidence workspace", () => {
 
     expect(await screen.findByText("Oil temperature reached 66 C")).toBeInTheDocument();
     expect(screen.getByText("Return-line gauge PT-14")).toBeInTheDocument();
-    expect(screen.getByText(/not sent to the AI model/i)).toBeInTheDocument();
+    expect(screen.getByText(/not automatically included in AI searches/i)).toBeInTheDocument();
     expect(screen.getByText(/HUMAN ENTERED · wiznick79/i)).toBeInTheDocument();
   });
 
-  it("appends an observation with caller provenance", async () => {
+  it("appends an observation with authenticated provenance", async () => {
     render(<IncidentWorkspacePage incidentId="incident-1" />);
     await screen.findByText("Oil temperature reached 66 C");
 
@@ -38,6 +38,8 @@ describe("Incident evidence workspace", () => {
       "/api/incidents/incident-1/observations",
       expect.objectContaining({ method: "POST", body: expect.stringContaining("Filter housing was warm.") }),
     ));
+    const call = vi.mocked(globalThis.fetch).mock.calls.find(([path, options]) => String(path).endsWith("/observations") && options?.method === "POST");
+    expect(JSON.parse(String(call?.[1]?.body))).not.toHaveProperty("authorReference");
     expect(screen.getByLabelText("Observation")).toHaveValue("");
   });
 
@@ -55,6 +57,7 @@ describe("Incident evidence workspace", () => {
       expect(call).toBeDefined();
       expect(JSON.parse(String(call?.[1]?.body))).toEqual(expect.objectContaining({ type: "MEASUREMENT", sourceReference: "Gauge PT-14" }));
       expect(JSON.parse(String(call?.[1]?.body))).not.toHaveProperty("provenance");
+      expect(JSON.parse(String(call?.[1]?.body))).not.toHaveProperty("submittedBy");
     });
   });
 });

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { EmptyState, ErrorNotice, LoadingRows } from "../components/Feedback";
-import type { Asset, FindingStatus, Incident, Investigation, QuestionAnswer, SourceDocument } from "../types";
+import type { Asset, FindingStatus, Incident, Investigation, QuestionAnswer, SourceDocument, UserSession } from "../types";
 import { PageHeading } from "./AssetsPage";
 
 const ACTIVE_INCIDENT_STATUSES = new Set(["REPORTED", "INVESTIGATING"]);
@@ -11,10 +11,12 @@ export function InvestigationsPage({
   initialIncidentId,
   onInvestigationOpened,
   onViewAllIncidents,
+  session,
 }: {
   initialIncidentId?: string | null;
   onInvestigationOpened?: (incidentId: string) => void;
   onViewAllIncidents?: () => void;
+  session?: UserSession;
 }) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -32,6 +34,9 @@ export function InvestigationsPage({
   const attemptedRouteIncident = useRef<string | null>(null);
   const indexedDocuments = useMemo(() => documents.filter((document) => document.status === "INDEXED"), [documents]);
   const selectedIncident = incidents.find((incident) => incident.id === selectedIncidentId);
+  const roles = session?.roles ?? ["ADMIN", "INVESTIGATOR", "REVIEWER"];
+  const canReview = roles.includes("REVIEWER") || roles.includes("ADMIN");
+  const canClose = roles.includes("INVESTIGATOR") || roles.includes("ADMIN");
 
   useEffect(() => {
     let active = true;
@@ -108,7 +113,6 @@ export function InvestigationsPage({
       await api.proposeFinding(investigation.id, {
         sourceQuestionId: questionId,
         summary: String(form.get("summary")),
-        proposedBy: String(form.get("proposedBy")),
       });
       setDraftQuestionId(null);
       await refresh(investigation.id);
@@ -125,7 +129,6 @@ export function InvestigationsPage({
     try {
       await api.reviewFinding(investigation.id, findingId, {
         decision: String(form.get("decision")) as Exclude<FindingStatus, "DRAFT">,
-        reviewerReference: String(form.get("reviewerReference")),
         rationale: String(form.get("rationale")),
       });
       await refresh(investigation.id);
@@ -142,7 +145,6 @@ export function InvestigationsPage({
     try {
       setInvestigation(await api.closeInvestigation(investigation.id, {
         summary: String(form.get("summary")),
-        closedBy: String(form.get("closedBy")),
       }));
     } catch (cause) { setError(message(cause)); }
     finally { setFindingAction(null); }
@@ -197,7 +199,7 @@ export function InvestigationsPage({
                 onPropose={(event) => proposeFinding(event, item.id)}
               />)}
           </div>
-          <FindingsPanel investigation={investigation} incident={selectedIncident} busyAction={findingAction} incidentAction={incidentAction} onReview={reviewFinding} onClose={closeInvestigation} onResolveIncident={resolveIncident} />
+          <FindingsPanel investigation={investigation} incident={selectedIncident} busyAction={findingAction} incidentAction={incidentAction} canReview={canReview} canClose={canClose} onReview={reviewFinding} onClose={closeInvestigation} onResolveIncident={resolveIncident} />
           {investigation.status === "OPEN" ? <form className="question-form" onSubmit={ask}><label>Question<textarea name="question" required maxLength={1000} rows={3} placeholder="What evidence supports inspecting the hydraulic seal?" /></label><button className="primary-button" disabled={asking || indexedDocuments.length === 0}>{asking ? "Reviewing evidence…" : "Ask with evidence"}</button></form> : null}
         </>}
       </section>
@@ -289,7 +291,6 @@ function AnswerCard({
     {findingExists ? <p className="finding-linked">A reviewable finding has been created from this answer.</p> : null}
     {drafting ? <form className="finding-draft-form" onSubmit={onPropose}>
       <label>Finding summary<textarea name="summary" required maxLength={2000} rows={3} defaultValue={item.answer ?? ""} /></label>
-      <label>Proposed by<input name="proposedBy" required maxLength={120} defaultValue="wiznick79" /><span>Local provenance label; authentication is not enabled yet.</span></label>
       <button className="primary-button" disabled={busy}>{busy ? "Creating draft…" : "Create draft finding"}</button>
     </form> : null}
     <footer>{item.modelId ?? "No model used"} · {item.promptVersion}</footer>
@@ -301,6 +302,8 @@ function FindingsPanel({
   incident,
   busyAction,
   incidentAction,
+  canReview,
+  canClose,
   onReview,
   onClose,
   onResolveIncident,
@@ -309,6 +312,8 @@ function FindingsPanel({
   incident: Incident | undefined;
   busyAction: string | null;
   incidentAction: boolean;
+  canReview: boolean;
+  canClose: boolean;
   onReview: (event: FormEvent<HTMLFormElement>, findingId: string) => void;
   onClose: (event: FormEvent<HTMLFormElement>) => void;
   onResolveIncident: () => void;
@@ -323,19 +328,19 @@ function FindingsPanel({
       <small>Proposed by {finding.proposedBy} · {formatDate(finding.proposedAt)}</small>
       {finding.reviewedBy ? <div className="review-outcome"><strong>{finding.status} by {finding.reviewedBy}</strong><p>{finding.reviewRationale}</p></div> : null}
       <details className="review-history"><summary>Audit history · {finding.events.length} event{finding.events.length === 1 ? "" : "s"}</summary>{finding.events.map((event) => <p key={event.id}><strong>{event.type}</strong> · {event.actorReference} · {formatDate(event.occurredAt)}{event.rationale ? ` — ${event.rationale}` : ""}</p>)}</details>
-      {finding.status === "DRAFT" ? <form className="review-form" onSubmit={(event) => onReview(event, finding.id)}>
-        <div className="field-pair"><label>Decision<select name="decision" defaultValue="CONFIRMED"><option value="CONFIRMED">Confirm</option><option value="REJECTED">Reject</option></select></label><label>Reviewer<input name="reviewerReference" required maxLength={120} defaultValue="wiznick79" /></label></div>
+      {finding.status === "DRAFT" && canReview ? <form className="review-form" onSubmit={(event) => onReview(event, finding.id)}>
+        <label>Decision<select name="decision" defaultValue="CONFIRMED"><option value="CONFIRMED">Confirm</option><option value="REJECTED">Reject</option></select></label>
         <label>Rationale<textarea name="rationale" required maxLength={1000} rows={2} placeholder="Explain the evidence-based review decision." /></label>
         <button className="primary-button" disabled={busyAction === finding.id}>{busyAction === finding.id ? "Recording review…" : "Record review decision"}</button>
-      </form> : null}
+      </form> : finding.status === "DRAFT" ? <p className="role-boundary">You do not have permission to review this finding.</p> : null}
     </article>)}
     {investigation.status === "CLOSED" ? <><div className="closure-outcome"><span>CLOSED</span><h3>Case closure</h3><p>{investigation.closureSummary}</p><small>Closed by {investigation.closedBy} · {formatDate(investigation.closedAt!)}</small></div>{incident?.status === "INVESTIGATING" ? <div className="incident-resolution"><div><strong>Investigation complete</strong><p>The incident remains separate until a person marks the operational case resolved.</p></div><button className="quiet-button" disabled={incidentAction} onClick={onResolveIncident}>{incidentAction ? "Updating…" : "Mark incident resolved"}</button></div> : incident ? <p className="incident-lifecycle-state">Incident status: <strong>{incident.status}</strong></p> : null}</>
-      : hasConfirmedFinding && !hasDraftFinding ? <form className="closure-form" onSubmit={onClose}>
+      : hasConfirmedFinding && !hasDraftFinding && canClose ? <form className="closure-form" onSubmit={onClose}>
         <div><h3>Close investigation</h3><p>Closure is terminal. Summarize the human-reviewed conclusion without overstating the evidence.</p></div>
         <label>Closure summary<textarea name="summary" required maxLength={4000} rows={3} placeholder="Summarize the confirmed findings, uncertainty, and any follow-up." /></label>
-        <label>Closed by<input name="closedBy" required maxLength={120} defaultValue="wiznick79" /><span>Local provenance label; authentication is not enabled yet.</span></label>
         <button className="primary-button" disabled={busyAction === "closure"}>{busyAction === "closure" ? "Closing investigation…" : "Close investigation"}</button>
       </form>
+      : hasConfirmedFinding && !hasDraftFinding ? <p className="closure-readiness">You do not have permission to close this investigation.</p>
       : <p className="closure-readiness">Resolve every draft and confirm at least one finding before closing the investigation.</p>}
   </section>;
 }

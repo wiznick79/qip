@@ -18,6 +18,12 @@ services:
       QIP_DB_USERNAME: ${QIP_DB_USERNAME:-qip}
       QIP_DB_PASSWORD: ${QIP_DB_PASSWORD:-qip-local-only}
       QIP_DOCUMENT_STORAGE_DIRECTORY: /app/data/documents
+      QIP_INVESTIGATOR_USERNAME: ${QIP_INVESTIGATOR_USERNAME:-qip-investigator}
+      QIP_INVESTIGATOR_PASSWORD: ${QIP_INVESTIGATOR_PASSWORD:-qip-investigator-local-only}
+      QIP_REVIEWER_USERNAME: ${QIP_REVIEWER_USERNAME:-qip-reviewer}
+      QIP_REVIEWER_PASSWORD: ${QIP_REVIEWER_PASSWORD:-qip-reviewer-local-only}
+      QIP_ADMIN_USERNAME: ${QIP_ADMIN_USERNAME:-qip-admin}
+      QIP_ADMIN_PASSWORD: ${QIP_ADMIN_PASSWORD:-qip-admin-local-only}
       QIP_OLLAMA_BASE_URL: ${QIP_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       QIP_OLLAMA_CHAT_MODEL: ${QIP_OLLAMA_CHAT_MODEL:-qwen3-coder:30b}
       QIP_OLLAMA_EMBEDDING_MODEL: ${QIP_OLLAMA_EMBEDDING_MODEL:-nomic-embed-text:latest}

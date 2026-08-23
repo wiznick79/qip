@@ -1,5 +1,6 @@
 package io.github.wiznick79.qip.incidents;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -24,7 +25,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 @AutoConfigureMockMvc
-@SpringBootTest
+@SpringBootTest(properties = "qip.security.enabled=false")
 class ObservationApiIntegrationTests {
 
     private static final DockerImageName PGVECTOR_IMAGE =
@@ -89,6 +90,7 @@ class ObservationApiIntegrationTests {
         String missingIncidentId = "00000000-0000-0000-0000-000000000999";
 
         mockMvc.perform(post("/api/incidents/{incidentId}/observations", missingIncidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(observationRequest("Gauge read zero", "investigator-17", "2026-08-17T10:00:00Z")))
                 .andExpect(status().isNotFound())
@@ -103,6 +105,7 @@ class ObservationApiIntegrationTests {
         String futureTime = Instant.now().plusSeconds(3600).toString();
 
         mockMvc.perform(post("/api/incidents/{incidentId}/observations", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(observationRequest("Gauge read zero", "investigator-17", futureTime)))
                 .andExpect(status().isBadRequest())
@@ -116,6 +119,7 @@ class ObservationApiIntegrationTests {
         String incidentId = createIncident();
 
         mockMvc.perform(post("/api/incidents/{incidentId}/observations", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"text":" ","authorReference":" "}
@@ -124,7 +128,6 @@ class ObservationApiIntegrationTests {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Request validation failed"))
                 .andExpect(jsonPath("$.errors.text").isNotEmpty())
-                .andExpect(jsonPath("$.errors.authorReference").isNotEmpty())
                 .andExpect(jsonPath("$.errors.observedAt").isNotEmpty());
     }
 
@@ -160,6 +163,7 @@ class ObservationApiIntegrationTests {
     private String appendObservation(String incidentId, String text, String authorReference, String observedAt)
             throws Exception {
         return mockMvc.perform(post("/api/incidents/{incidentId}/observations", incidentId)
+                        .with(user("investigator-17"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(observationRequest(text, authorReference, observedAt)))
                 .andExpect(status().isCreated())
