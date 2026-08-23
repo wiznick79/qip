@@ -19,7 +19,7 @@ COPY config/ config/
 COPY --from=frontend-build /workspace/frontend/dist frontend/dist/
 RUN mvn -B -Drevision="${QIP_VERSION}" -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:24-jre-alpine AS runtime
 ARG QIP_VERSION
 ARG QIP_REVISION=unknown
 LABEL org.opencontainers.image.title="Quality Investigation Platform" \
