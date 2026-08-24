@@ -7,4 +7,8 @@ public interface IncidentCatalog {
     IncidentSnapshot getIncident(UUID incidentId);
 
     boolean incidentExists(UUID incidentId);
+
+    IncidentSnapshot markInvestigationStarted(UUID incidentId);
+
+    IncidentSnapshot markInvestigationCompleted(UUID incidentId);
 }

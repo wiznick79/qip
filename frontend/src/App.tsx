@@ -7,16 +7,18 @@ import { DocumentsPage } from "./pages/DocumentsPage";
 import { IncidentsPage } from "./pages/IncidentsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { IncidentWorkspacePage } from "./pages/IncidentWorkspacePage";
+import { OperationsPage } from "./pages/OperationsPage";
 import type { UserSession } from "./types";
 
-type View = "dashboard" | "assets" | "incidents" | "documents" | "investigations";
+type View = "dashboard" | "assets" | "incidents" | "documents" | "investigations" | "operations";
 
-const navigation: { id: View; label: string; number: string }[] = [
+const navigation: { id: View; label: string; number: string; adminOnly?: boolean }[] = [
   { id: "dashboard", label: "Dashboard", number: "00" },
   { id: "assets", label: "Assets", number: "01" },
   { id: "incidents", label: "Incidents", number: "02" },
   { id: "documents", label: "Documents", number: "03" },
   { id: "investigations", label: "Investigate", number: "04" },
+  { id: "operations", label: "Operations", number: "05", adminOnly: true },
 ];
 
 export function App() {
@@ -72,6 +74,9 @@ export function App() {
     return <LoginPage error={sessionError} onLogin={login} />;
   }
 
+  const isAdmin = session.roles.includes("ADMIN");
+  const visibleNavigation = navigation.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -84,7 +89,7 @@ export function App() {
       <div className="workspace">
         <aside className="sidebar">
           <div><p className="nav-label">Workspace</p><nav aria-label="Primary navigation">
-            {navigation.map((item) => <button key={item.id} className={location.view === item.id ? "active" : ""} onClick={() => navigate(item.id)} aria-current={location.view === item.id ? "page" : undefined}><span>{item.number}</span>{item.label}</button>)}
+            {visibleNavigation.map((item) => <button key={item.id} className={location.view === item.id ? "active" : ""} onClick={() => navigate(item.id)} aria-current={location.view === item.id ? "page" : undefined}><span>{item.number}</span>{item.label}</button>)}
           </nav></div>
           <div className="grounding-note"><span aria-hidden="true">◎</span><div><strong>Evidence first</strong><p>AI findings will remain suggestions until a person confirms them.</p></div></div>
         </aside>
@@ -102,7 +107,10 @@ export function App() {
                 onInvestigate={(incidentId) => navigate("investigations", incidentId)}
               />
               : location.view === "documents" ? <DocumentsPage />
-                : <InvestigationsPage
+                : location.view === "operations" ? isAdmin
+                  ? <OperationsPage />
+                  : <DashboardPage onNavigate={navigate} onOpenIncident={(incidentId) => navigate("incidents", incidentId)} />
+                  : <InvestigationsPage
                   initialIncidentId={location.incidentId}
                   onInvestigationOpened={(incidentId) => navigate("investigations", incidentId)}
                   onViewAllIncidents={() => navigate("incidents")}

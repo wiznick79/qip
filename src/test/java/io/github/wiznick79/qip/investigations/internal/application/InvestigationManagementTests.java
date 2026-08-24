@@ -13,6 +13,7 @@ import io.github.wiznick79.qip.investigations.internal.domain.InvestigationFindi
 import io.github.wiznick79.qip.investigations.internal.domain.InvestigationQuestion;
 import io.github.wiznick79.qip.knowledge.api.KnowledgeSearch;
 import io.github.wiznick79.qip.knowledge.api.RetrievedPassage;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -107,6 +108,50 @@ class InvestigationManagementTests {
     }
 
     @Test
+    void recordsModelLatencyAndPersistedAnswerStatusWithBoundedTags() {
+        var meterRegistry = new SimpleMeterRegistry();
+        AnswerGenerator generator = prompt ->
+                new AnswerGenerationResult(true, "Inspect the synthetic seal.", List.of(PASSAGE_ID), "fake-chat-v1");
+        var management = management(new InMemoryRepository(), query -> List.of(passage(0.8)), generator, meterRegistry);
+        UUID investigationId = management.create(INCIDENT_ID).id();
+
+        management.ask(investigationId, new AskQuestionCommand("What happened?", Set.of()));
+
+        AnswerGenerator failingGenerator = prompt -> {
+            throw new IllegalStateException("synthetic provider failure");
+        };
+        var failingManagement =
+                management(new InMemoryRepository(), query -> List.of(passage(0.8)), failingGenerator, meterRegistry);
+        UUID failingInvestigationId = failingManagement.create(INCIDENT_ID).id();
+        failingManagement.ask(failingInvestigationId, new AskQuestionCommand("What failed?", Set.of()));
+
+        assertThat(meterRegistry
+                        .get(InvestigationOperationalMetrics.MODEL)
+                        .tag("outcome", "success")
+                        .timer()
+                        .count())
+                .isEqualTo(1);
+        assertThat(meterRegistry
+                        .get(InvestigationOperationalMetrics.MODEL)
+                        .tag("outcome", "failure")
+                        .timer()
+                        .count())
+                .isEqualTo(1);
+        assertThat(meterRegistry
+                        .get(InvestigationOperationalMetrics.ANSWERS)
+                        .tag("status", AnswerStatus.GROUNDED.name())
+                        .counter()
+                        .count())
+                .isEqualTo(1);
+        assertThat(meterRegistry
+                        .get(InvestigationOperationalMetrics.ANSWERS)
+                        .tag("status", AnswerStatus.TECHNICAL_FAILURE.name())
+                        .counter()
+                        .count())
+                .isEqualTo(1);
+    }
+
+    @Test
     void promptMarksMaliciousDocumentInstructionsAsUntrustedAndBoundsContext() {
         var builder = new GroundedPromptBuilder(1_000);
         var malicious = new RetrievedPassage(
@@ -130,6 +175,14 @@ class InvestigationManagementTests {
 
     private static InvestigationManagement management(
             InMemoryRepository repository, KnowledgeSearch knowledge, AnswerGenerator answers) {
+        return management(repository, knowledge, answers, new SimpleMeterRegistry());
+    }
+
+    private static InvestigationManagement management(
+            InMemoryRepository repository,
+            KnowledgeSearch knowledge,
+            AnswerGenerator answers,
+            SimpleMeterRegistry meterRegistry) {
         return new InvestigationManagement(
                 repository,
                 new FixedIncidentCatalog(),
@@ -154,6 +207,7 @@ class InvestigationManagementTests {
                 () -> INVESTIGATION_ID,
                 () -> QUESTION_ID,
                 Clock.fixed(NOW, ZoneOffset.UTC),
+                new InvestigationOperationalMetrics(meterRegistry),
                 6,
                 0.1);
     }
@@ -191,6 +245,16 @@ class InvestigationManagementTests {
         @Override
         public boolean incidentExists(UUID incidentId) {
             return INCIDENT_ID.equals(incidentId);
+        }
+
+        @Override
+        public IncidentSnapshot markInvestigationStarted(UUID incidentId) {
+            return incident();
+        }
+
+        @Override
+        public IncidentSnapshot markInvestigationCompleted(UUID incidentId) {
+            return incident();
         }
     }
 

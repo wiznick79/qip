@@ -29,6 +29,20 @@ describe("API client", () => {
     expect(new Headers(init?.headers).has("Content-Type")).toBe(false);
   });
 
+  it("requests filtered Actuator metrics with repeated tag parameters", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({
+      name: "qip.knowledge.ingestion",
+      description: "Synthetic metric",
+      baseUnit: "seconds",
+      measurements: [],
+    }));
+
+    await api.getMetric("qip.knowledge.ingestion", { stage: "extraction", outcome: "failure" });
+
+    expect(String(fetchMock.mock.calls[0][0]))
+      .toBe("/actuator/metrics/qip.knowledge.ingestion?tag=stage%3Aextraction&tag=outcome%3Afailure");
+  });
+
   it("uses the server CSRF token for login and state-changing requests", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       if (String(input) === "/api/session") {

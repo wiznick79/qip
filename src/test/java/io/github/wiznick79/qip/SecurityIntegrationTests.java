@@ -58,6 +58,16 @@ class SecurityIntegrationTests {
     }
 
     @Test
+    void restrictsOperationalMetricsToAdministrators() throws Exception {
+        mockMvc.perform(get("/actuator/metrics")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/actuator/metrics").with(user("investigator").roles("INVESTIGATOR")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/actuator/metrics").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.names").isArray());
+    }
+
+    @Test
     void acceptsConfiguredLocalCredentials() throws Exception {
         MockHttpSession session = (MockHttpSession) mockMvc.perform(post("/api/session/login")
                         .with(csrf())

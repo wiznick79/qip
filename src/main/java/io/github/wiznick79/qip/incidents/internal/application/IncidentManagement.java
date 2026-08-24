@@ -60,6 +60,30 @@ public class IncidentManagement implements IncidentCatalog {
         return repository.existsById(incidentId);
     }
 
+    @Override
+    @Transactional
+    public IncidentSnapshot markInvestigationStarted(UUID incidentId) {
+        Incident incident = findIncident(incidentId);
+        if (incident.status() != IncidentStatus.REPORTED) {
+            return snapshot(incident);
+        }
+        return snapshot(repository.save(incident.transitionTo(IncidentStatus.INVESTIGATING, Instant.now(clock))));
+    }
+
+    @Override
+    @Transactional
+    public IncidentSnapshot markInvestigationCompleted(UUID incidentId) {
+        Incident incident = findIncident(incidentId);
+        if (incident.status() == IncidentStatus.CLOSED || incident.status() == IncidentStatus.RESOLVED) {
+            return snapshot(incident);
+        }
+        Instant now = Instant.now(clock);
+        if (incident.status() == IncidentStatus.REPORTED) {
+            incident = incident.transitionTo(IncidentStatus.INVESTIGATING, now);
+        }
+        return snapshot(repository.save(incident.transitionTo(IncidentStatus.RESOLVED, now)));
+    }
+
     @Transactional
     public IncidentSnapshot updateStatus(UUID incidentId, IncidentStatus requestedStatus) {
         Incident updated = findIncident(incidentId).transitionTo(requestedStatus, Instant.now(clock));

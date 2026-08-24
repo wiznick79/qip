@@ -182,6 +182,10 @@ class InvestigationApiIntegrationTests {
                 .andExpect(jsonPath("$.closedBy").value("wiznick79"))
                 .andExpect(jsonPath("$.closedAt").isNotEmpty());
 
+        mockMvc.perform(get("/api/incidents/{incidentId}", incidentId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESOLVED"));
+
         mockMvc.perform(post("/api/investigations/{investigationId}/questions", investigationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
