@@ -50,7 +50,6 @@ try {
         eventAt = $eventTime
     }
     $investigation = Invoke-QipJson -Context $context -Method "POST" -Path "/api/incidents/$($incident.id)/investigations"
-    $incident = Invoke-QipJson -Context $context -Method "PATCH" -Path "/api/incidents/$($incident.id)/status" -Body @{ status = "INVESTIGATING" }
 
     $answer = Invoke-QipJson -Context $context -Method "POST" -Path "/api/investigations/$($investigation.id)/questions" -Body @{
         question = "What evidence supports the first inspection, and what remains uncertain?"
@@ -72,7 +71,7 @@ try {
         $closedInvestigation = Invoke-QipJson -Context $context -Method "POST" -Path "/api/investigations/$($investigation.id)/closure" -Body @{
             summary = "The synthetic return-filter inspection finding is confirmed. Other contributing factors remain uncertain and require normal human follow-up."
         }
-        $incident = Invoke-QipJson -Context $context -Method "PATCH" -Path "/api/incidents/$($incident.id)/status" -Body @{ status = "RESOLVED" }
+        $incident = Invoke-QipJson -Context $context -Method "GET" -Path "/api/incidents/$($incident.id)"
     }
 
     Write-Host "Synthetic investigation completed."

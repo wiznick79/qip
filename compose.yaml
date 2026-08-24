@@ -29,6 +29,7 @@ services:
       QIP_OLLAMA_EMBEDDING_MODEL: ${QIP_OLLAMA_EMBEDDING_MODEL:-nomic-embed-text:latest}
       QIP_OLLAMA_CONNECT_TIMEOUT: ${QIP_OLLAMA_CONNECT_TIMEOUT:-5s}
       QIP_OLLAMA_READ_TIMEOUT: ${QIP_OLLAMA_READ_TIMEOUT:-3m}
+      QIP_CONSOLE_LOG_FORMAT: ${QIP_CONSOLE_LOG_FORMAT:-logstash}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

@@ -5,6 +5,7 @@ import io.github.wiznick79.qip.knowledge.api.DocumentNotFoundException;
 import io.github.wiznick79.qip.knowledge.api.DocumentSnapshot;
 import io.github.wiznick79.qip.knowledge.api.DocumentStatus;
 import io.github.wiznick79.qip.knowledge.internal.domain.SourceDocument;
+import io.micrometer.core.instrument.Timer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,7 @@ public class DocumentManagement {
     private final DocumentIndexer indexer;
     private final DocumentIdGenerator idGenerator;
     private final Clock clock;
+    private final KnowledgeOperationalMetrics metrics;
     private final long maxUploadBytes;
 
     public DocumentManagement(
@@ -38,6 +40,7 @@ public class DocumentManagement {
             DocumentIndexer indexer,
             DocumentIdGenerator idGenerator,
             Clock clock,
+            KnowledgeOperationalMetrics metrics,
             @Value("${qip.documents.max-upload-bytes}") long maxUploadBytes) {
         this.repository = repository;
         this.storage = storage;
@@ -45,6 +48,7 @@ public class DocumentManagement {
         this.indexer = indexer;
         this.idGenerator = idGenerator;
         this.clock = clock;
+        this.metrics = metrics;
         this.maxUploadBytes = maxUploadBytes;
     }
 
@@ -106,6 +110,7 @@ public class DocumentManagement {
 
     private DocumentSnapshot extract(SourceDocument document) {
         SourceDocument extracting = repository.save(document.startExtraction(Instant.now(clock)));
+        Timer.Sample sample = metrics.start();
         SourceDocument extracted;
         try {
             List<ExtractedPage> pages =
@@ -114,7 +119,9 @@ public class DocumentManagement {
                 throw new DocumentExtractionException("Document contains no extractable text");
             }
             extracted = repository.saveExtraction(extracting.completeExtraction(Instant.now(clock)), pages);
+            metrics.recordIngestion(sample, "extraction", "success");
         } catch (RuntimeException exception) {
+            metrics.recordIngestion(sample, "extraction", "failure");
             String reason = safeExtractionFailureReason(exception);
             SourceDocument failed = extracting.failExtraction(reason, Instant.now(clock));
             return snapshot(repository.save(failed));
@@ -132,10 +139,14 @@ public class DocumentManagement {
 
     private DocumentSnapshot index(SourceDocument document) {
         SourceDocument indexing = repository.save(document.startIndexing(Instant.now(clock)));
+        Timer.Sample sample = metrics.start();
         try {
             indexer.index(indexing.id(), repository.findExtractedPages(indexing.id()));
-            return snapshot(repository.save(indexing.completeIndexing(Instant.now(clock))));
+            DocumentSnapshot completed = snapshot(repository.save(indexing.completeIndexing(Instant.now(clock))));
+            metrics.recordIngestion(sample, "indexing", "success");
+            return completed;
         } catch (RuntimeException exception) {
+            metrics.recordIngestion(sample, "indexing", "failure");
             String reason = safeIndexingFailureReason(exception);
             return snapshot(repository.save(indexing.failIndexing(reason, Instant.now(clock))));
         }

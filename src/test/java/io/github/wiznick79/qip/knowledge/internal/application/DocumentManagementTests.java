@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.wiznick79.qip.knowledge.api.DocumentMediaType;
 import io.github.wiznick79.qip.knowledge.api.DocumentStatus;
 import io.github.wiznick79.qip.knowledge.internal.domain.SourceDocument;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -28,6 +29,7 @@ class DocumentManagementTests {
     private InMemoryStorage storage;
     private ConfigurableExtractor extractor;
     private ConfigurableIndexer indexer;
+    private SimpleMeterRegistry meterRegistry;
     private DocumentManagement documents;
 
     @BeforeEach
@@ -36,8 +38,16 @@ class DocumentManagementTests {
         storage = new InMemoryStorage();
         extractor = new ConfigurableExtractor();
         indexer = new ConfigurableIndexer();
+        meterRegistry = new SimpleMeterRegistry();
         documents = new DocumentManagement(
-                repository, storage, extractor, indexer, () -> DOCUMENT_ID, Clock.fixed(NOW, ZoneOffset.UTC), 1_000);
+                repository,
+                storage,
+                extractor,
+                indexer,
+                () -> DOCUMENT_ID,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                new KnowledgeOperationalMetrics(meterRegistry),
+                1_000);
     }
 
     @Test
@@ -49,6 +59,20 @@ class DocumentManagementTests {
         assertThat(result.document().originalFilename()).isEqualTo("guide.txt");
         assertThat(result.document().extractedPageCount()).isEqualTo(1);
         assertThat(storage.keys()).containsExactly(DOCUMENT_ID + ".bin");
+        assertThat(meterRegistry
+                        .get(KnowledgeOperationalMetrics.INGESTION)
+                        .tag("stage", "extraction")
+                        .tag("outcome", "success")
+                        .timer()
+                        .count())
+                .isEqualTo(1);
+        assertThat(meterRegistry
+                        .get(KnowledgeOperationalMetrics.INGESTION)
+                        .tag("stage", "indexing")
+                        .tag("outcome", "success")
+                        .timer()
+                        .count())
+                .isEqualTo(1);
         assertThat(repository.savedStatuses)
                 .containsExactly(
                         DocumentStatus.UPLOADED,
@@ -81,6 +105,13 @@ class DocumentManagementTests {
         assertThat(failed.document().status()).isEqualTo(DocumentStatus.EXTRACTION_FAILED);
         assertThat(failed.document().failureReason()).isEqualTo("Synthetic parse failure");
         assertThat(retried.status()).isEqualTo(DocumentStatus.INDEXED);
+        assertThat(meterRegistry
+                        .get(KnowledgeOperationalMetrics.INGESTION)
+                        .tag("stage", "extraction")
+                        .tag("outcome", "failure")
+                        .timer()
+                        .count())
+                .isEqualTo(1);
     }
 
     @Test

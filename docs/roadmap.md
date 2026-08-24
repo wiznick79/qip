@@ -34,10 +34,12 @@ Make ingestion and model behavior diagnosable without logging document bodies, p
 
 - Add structured, correlation-aware application logs.
 - Record ingestion duration and outcome, retrieval duration, model latency, and answer status metrics.
-- Expose bounded operational metrics while keeping sensitive health details hidden.
+- Expose bounded operational metrics and an administrator-only current-process dashboard while keeping sensitive health details hidden.
 - Document a small local troubleshooting workflow and service-level indicators.
 
 An external observability stack is added only when deployment needs justify it.
+
+Implemented with validated request correlation IDs, structured safe request logs, low-cardinality Micrometer timers and counters for ingestion/retrieval/model/answer outcomes, administrator-only Actuator metrics and Operations page, hidden health details, and a local troubleshooting and SLI guide.
 
 ## Milestone 17 — hosted portfolio deployment
 

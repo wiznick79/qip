@@ -34,15 +34,20 @@ const groundedQuestion = {
 describe("Investigation workspace", () => {
   let findings: Array<Record<string, unknown>>;
   let closed: boolean;
+  let incidentStatus: "REPORTED" | "INVESTIGATING" | "RESOLVED";
 
   beforeEach(() => {
     findings = [];
     closed = false;
+    incidentStatus = "INVESTIGATING";
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.startsWith("/api/assets?")) return json({ items: [asset], page: 0, size: 100, totalElements: 1 });
-      if (url.startsWith("/api/incidents?")) return json({ items: [incident, closedIncident], page: 0, size: 100, totalElements: 2 });
+      if (url.startsWith("/api/incidents?")) return json({ items: [{ ...incident, status: incidentStatus }, closedIncident], page: 0, size: 100, totalElements: 2 });
       if (url.startsWith("/api/documents?")) return json({ items: [document], page: 0, size: 100, totalElements: 1 });
+      if (url === "/api/incidents/incident-1" && (!init?.method || init.method === "GET")) {
+        return json({ ...incident, status: incidentStatus });
+      }
       if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null, closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
       if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(groundedQuestion);
       if (url === "/api/investigations/investigation-1/findings" && init?.method === "POST") {
@@ -66,12 +71,15 @@ describe("Investigation workspace", () => {
       if (url === "/api/investigations/investigation-1/closure" && init?.method === "POST") {
         const body = JSON.parse(String(init.body)) as { summary: string };
         closed = true;
+        incidentStatus = "RESOLVED";
         return json({ id: "investigation-1", incidentId: "incident-1", status: "CLOSED",
           closureSummary: body.summary, closedBy: "wiznick79", closedAt: "2026-08-20T10:04:00Z",
           questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:04:00Z" });
       }
       if (url === "/api/incidents/incident-1/status" && init?.method === "PATCH") {
-        return json({ ...incident, status: "RESOLVED", updatedAt: "2026-08-20T10:05:00Z" });
+        const body = JSON.parse(String(init.body)) as { status: typeof incidentStatus };
+        incidentStatus = body.status;
+        return json({ ...incident, status: incidentStatus, updatedAt: "2026-08-20T10:05:00Z" });
       }
       if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", status: closed ? "CLOSED" : "OPEN", closureSummary: closed ? "The confirmed finding closes this case." : null, closedBy: closed ? "wiznick79" : null, closedAt: closed ? "2026-08-20T10:04:00Z" : null, questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
       return new Response(null, { status: 404 });
@@ -85,6 +93,7 @@ describe("Investigation workspace", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
     fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
     expect(await screen.findByText("No questions yet")).toBeInTheDocument();
+    expect(statusUpdateCalls()).toHaveLength(0);
 
     fireEvent.click(screen.getByLabelText(/Synthetic pump manual/i));
     fireEvent.change(screen.getByLabelText("Question"), { target: { value: "What should be inspected?" } });
@@ -97,6 +106,20 @@ describe("Investigation workspace", () => {
     await waitFor(() => expect(screen.getByLabelText("Question")).toHaveValue(""));
   });
 
+  it("moves a reported incident to investigating before opening its investigation", async () => {
+    incidentStatus = "REPORTED";
+    render(<InvestigationsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
+
+    expect(await screen.findByText("No questions yet")).toBeInTheDocument();
+    expect(screen.getByText("HIGH · INVESTIGATING")).toBeInTheDocument();
+    expect(statusUpdateCalls()).toHaveLength(1);
+    expect(statusUpdateCalls()[0]?.[1]).toEqual(expect.objectContaining({
+      method: "PATCH",
+      body: JSON.stringify({ status: "INVESTIGATING" }),
+    }));
+  });
   it("requires explicit proposal and review before a finding is confirmed", async () => {
     render(<InvestigationsPage />);
     fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
@@ -125,8 +148,8 @@ describe("Investigation workspace", () => {
     expect(await screen.findByText("Case closure")).toBeInTheDocument();
     expect(screen.getByText("The confirmed finding closes this case.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Mark incident resolved" }));
     expect(await screen.findByText(/Incident status:/)).toHaveTextContent("RESOLVED");
+    expect(statusUpdateCalls()).toHaveLength(0);
   });
 
   it("does not offer finding review to an investigator without the reviewer role", async () => {
@@ -184,6 +207,10 @@ function sessionWithRoles(...roles: string[]) {
     csrfHeaderName: "X-CSRF-TOKEN",
     csrfToken: "test-csrf-token",
   };
+}
+function statusUpdateCalls() {
+  return vi.mocked(globalThis.fetch).mock.calls.filter(([input, init]) =>
+    String(input) === "/api/incidents/incident-1/status" && init?.method === "PATCH");
 }
 function json(value: unknown) {
   return new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json" } });

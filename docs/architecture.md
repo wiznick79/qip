@@ -1,7 +1,7 @@
 # Architecture and MVP
 
-Status: v0.1.0 local MVP released; milestones 14 and 15 complete
-Last updated: 2026-08-23
+Status: v0.1.0 local MVP released; milestones 14–16 complete
+Last updated: 2026-08-24
 
 ## 1. Product definition
 
@@ -180,7 +180,7 @@ Incidents begin in `REPORTED` state. The normal lifecycle is `REPORTED` to `INVE
 
 Incident search accepts optional asset, status, and occurred-at bounds. `from` is inclusive and `to` is exclusive, which makes adjacent time windows unambiguous. Results are ordered by occurred-at time descending and then opaque incident ID ascending, with bounded pagination.
 
-The milestone 12 web workflow consumes that pagination in 20-record pages and exposes only valid next lifecycle actions. Starting an investigation explicitly moves a reported incident to `INVESTIGATING`; closing the investigation does not silently resolve the incident. Instead, the closed workspace offers a separate human action to move an investigating incident to `RESOLVED`. Resolved incidents may be reopened or explicitly closed from the incident queue.
+The milestone 12 web workflow consumes that pagination in 20-record pages and exposes only valid next lifecycle actions. Starting an investigation moves a reported incident to `INVESTIGATING`. Successfully closing that investigation atomically moves the incident to `RESOLVED`, because the investigation closure is the human decision that completes the active case workflow. Resolved incidents may be reopened or explicitly moved to terminal `CLOSED` later as an archival action.
 
 Primary screens use lightweight hash routes, including an incident identifier for an investigation workspace. This makes case links bookmarkable and restores the selected case after refresh without introducing a routing dependency. The compact investigation picker remains bounded to recent records; the paginated incident queue is the complete browsing surface.
 
@@ -253,6 +253,12 @@ Local configuration supplies synthetic `INVESTIGATOR`, `REVIEWER`, and `ADMIN` u
 ### Repeatable RAG evaluation
 
 Milestone 15 promotes the synthetic retrieval baseline into a versioned end-to-end quality gate. Fixture `v1` exercises document upload and indexing, deterministic retrieval, bounded prompt construction, answer-status classification, citation allow-listing, persistence, and the public question API. The default build requires every measured retrieval hit, grounded citation, expected status, context bound, and adversarial boundary to pass, then writes a Markdown report under `target/rag-evaluation/`.
+
+### Operational observability
+
+Milestone 16 keeps diagnostics inside the modular monolith. A servlet boundary validates or creates X-Correlation-ID, returns it to the caller, places it in MDC for the request lifetime, and emits a structured completion event containing only method, path, status, and duration. Spring Boot's Logstash JSON console format makes those fields machine-readable without logging query strings, bodies, document content, prompts, model responses, credentials, or authorization headers.
+
+Micrometer timers record extraction and indexing by fixed stage/outcome tags, retrieval by outcome, and model calls by outcome. A counter records persisted terminal answer status. IDs, users, and model names are excluded from metric tags to keep cardinality bounded. Actuator exposes only health and metrics; health details remain hidden, health stays public for probes, and metrics require the administrator role. An administrator-only Operations page converts those raw measurements into current-process counts, failure ratios, average/max latency, and answer outcomes with manual refresh. External telemetry, historical dashboards, and alerting remain deferred until hosted operation requires retention or cross-process tracing. ADR 0013 records this boundary.
 
 Adversarial cases inject document instructions, a generated unsupported claim, and an invented citation. The answer adapter used to provoke those outputs exists only in test scope; production validation remains the system under test. A separate environment-gated Ollama comparison uses the three baseline cases and records configured model identifiers. It requires explicit invocation, performs no model downloads, and is not part of normal CI. This evaluation harness adds no production dependency or runtime service.
 
@@ -457,7 +463,7 @@ Each numbered item should be a small, independently reviewable change. Do not co
 
 11. **Human-reviewed findings and case lifecycle**
    - Require a separate attributed review before a draft finding becomes confirmed or rejected.
-   - Close investigations only after drafts are resolved and a finding is confirmed; keep incident resolution a separate human action.
+   - Close investigations only after drafts are resolved and a finding is confirmed; successful closure resolves the incident in the same application transaction.
 
 12. **Incident evidence workspace**
    - Add bookmarkable incident records with paginated observation and human-entered evidence timelines.
@@ -477,7 +483,7 @@ The v0.1.0 release-readiness pass presents the product and safety posture from t
    - Turn the deterministic retrieval fixture into a complete, versioned grounded-answer quality gate.
 
 16. **Operational observability**
-   - Add safe structured correlation, latency/outcome metrics, and a bounded troubleshooting workflow.
+   - Add safe structured correlation, latency/outcome metrics, an administrator-only current-process Operations page, and a bounded troubleshooting workflow.
 
 17. **Hosted portfolio deployment**
    - Select and automate a modest deployment through an ADR without assuming distributed architecture.

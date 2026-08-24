@@ -20,8 +20,8 @@ _Grounded investigation workspace using fictional equipment and manuals. Local O
 | Backend | Java 21, Spring Boot, package-by-module design, Spring Modulith verification, REST problem details, Flyway, JPA, PostgreSQL, and pgvector |
 | AI safety | Bounded retrieval, untrusted-document handling, versioned prompts, citation validation, insufficient-evidence behavior, deterministic test adapters, and optional local Ollama models |
 | Human workflow | Authenticated attribution, role-bounded review and closure, incident observations and evidence, immutable review history, and explicit case closure |
-| Frontend | React and TypeScript investigation workspace with paginated case navigation, upload status, grounded-answer states, citations, and review controls |
-| Delivery | Testcontainers integration tests, frontend verification, GitHub Actions, a non-root multi-stage image, one-command Compose startup, and attested tag releases |
+| Frontend | React and TypeScript investigation workspace with paginated case navigation, upload status, grounded-answer states, citations, review controls, and administrator operations diagnostics |
+| Delivery | Testcontainers integration tests, frontend verification, GitHub Actions, a non-root multi-stage image, one-command Compose startup, attested tag releases, and bounded operational diagnostics |
 
 ### Five-minute credential-free tour
 
@@ -37,7 +37,7 @@ Open `http://localhost:8080/` and sign in as `qip-admin` / `qip-admin-local-only
 
 ### Deliberate boundaries
 
-This is a local portfolio application, not production machinery-control software. Its configurable in-memory users demonstrate authenticated attribution and role boundaries; enterprise identity, user administration, multi-tenancy, hosted deployment, OCR, enterprise integrations, and production observability remain deferred. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
+This is a local portfolio application, not production machinery-control software. Its configurable in-memory users demonstrate authenticated attribution and role boundaries; enterprise identity, user administration, multi-tenancy, hosted deployment, OCR, enterprise integrations, and an external observability stack remain deferred. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
 
 Start with:
 
@@ -55,6 +55,7 @@ Start with:
 - [ADR 0010: single-container web application packaging](docs/adr/0010-package-the-web-client-and-backend-in-one-container.md)
 - [ADR 0011: attested GitHub releases and GHCR images](docs/adr/0011-publish-attested-github-releases.md)
 - [ADR 0012: authenticated human actions](docs/adr/0012-authenticate-human-actions-with-spring-security.md)
+- [ADR 0013: in-process observability baseline](docs/adr/0013-use-in-process-observability-baseline.md)
 - [Post-v0.1 roadmap](docs/roadmap.md)
 - [Local MVP demonstration](docs/demo.md)
 - [Release process](docs/releasing.md)
@@ -259,9 +260,9 @@ npm run dev
 
 Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
-The web client opens on a compact dashboard with workflow totals, recent incidents, and direct actions. It also covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Investigation closure and incident resolution remain separate human actions. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
+The web client opens on a compact dashboard with workflow totals, recent incidents, and direct actions. It also covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Successfully closing an investigation automatically resolves its incident; moving that resolved incident to `CLOSED` remains an optional later archival action. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
 
-The v0.1.0 release established the complete local MVP, reproducible container packaging, and tag-driven artifact publication. Milestone 14 now adds authenticated attribution and role-bounded human decisions without changing the modular-monolith boundary. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without provider credentials.
+The v0.1.0 release established the complete local MVP, reproducible container packaging, and tag-driven artifact publication. Milestones 14–16 add authenticated attribution, repeatable RAG evaluation, and bounded operational diagnostics without changing the modular-monolith boundary. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without provider credentials.
 
 API and operational endpoints are available while QIP is running:
 
@@ -273,7 +274,7 @@ Liveness    http://localhost:8080/actuator/health/liveness
 Readiness   http://localhost:8080/actuator/health/readiness
 ```
 
-Only health is exposed through Actuator, and component details are hidden. Maven verification also generates Spring Modulith PlantUML diagrams and module canvases under `target/spring-modulith-docs/`.
+Health and metrics are the only exposed Actuator capabilities. Health component details remain hidden, and metrics require the administrator role. Administrators can use the in-application **Operations** page for current-process counts, failure rates, latency, and answer outcomes instead of reading raw JSON. Every response carries `X-Correlation-ID`; console logs are structured without request bodies, document text, prompts, model responses, or secrets. See [local operations and troubleshooting](docs/operations.md) for metric names, service-level indicators, and the bounded diagnostic workflow. Maven verification also generates Spring Modulith PlantUML diagrams and module canvases under `target/spring-modulith-docs/`.
 
 ## Synthetic demo data
 

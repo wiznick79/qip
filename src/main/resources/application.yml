@@ -54,12 +54,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,metrics
   endpoint:
     health:
       probes:
         enabled: true
       show-details: never
+
+logging:
+  structured:
+    format:
+      console: ${QIP_CONSOLE_LOG_FORMAT:logstash}
 
 springdoc:
   swagger-ui:

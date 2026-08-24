@@ -67,6 +67,35 @@ describe("QIP workspace", () => {
     expect(screen.getByRole("button", { name: /open investigations/i })).toBeInTheDocument();
   });
 
+  it("shows Operations only to administrators and does not call metrics for other roles", async () => {
+    const adminView = render(<App />);
+    expect(await screen.findByRole("button", { name: /Operations/ })).toBeInTheDocument();
+    adminView.unmount();
+
+    vi.restoreAllMocks();
+    window.history.replaceState(null, "", "#/operations");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/session") return jsonResponse({
+        authenticated: true,
+        username: "qip-investigator",
+        roles: ["INVESTIGATOR"],
+        csrfHeaderName: "X-CSRF-TOKEN",
+        csrfToken: "test-csrf-token",
+      });
+      if (url.startsWith("/api/assets")) return jsonResponse({ items: [], page: 0, size: 100, totalElements: 0 });
+      if (url.startsWith("/api/incidents")) return jsonResponse({ items: [], page: 0, size: 5, totalElements: 0 });
+      if (url.startsWith("/api/documents")) return jsonResponse({ items: [], page: 0, size: 100, totalElements: 0 });
+      return new Response(null, { status: 404 });
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Operations/ })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).startsWith("/actuator/metrics"))).toBe(false);
+  });
+
   it("signs in with valid credentials and opens the dashboard", async () => {
     let authenticated = false;
     vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {

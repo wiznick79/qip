@@ -13,6 +13,7 @@ import io.github.wiznick79.qip.investigations.internal.domain.InvestigationQuest
 import io.github.wiznick79.qip.knowledge.api.KnowledgeQuery;
 import io.github.wiznick79.qip.knowledge.api.KnowledgeSearch;
 import io.github.wiznick79.qip.knowledge.api.RetrievedPassage;
+import io.micrometer.core.instrument.Timer;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class InvestigationManagement {
@@ -39,6 +41,7 @@ public class InvestigationManagement {
     private final InvestigationIdGenerator investigationIds;
     private final QuestionIdGenerator questionIds;
     private final Clock clock;
+    private final InvestigationOperationalMetrics metrics;
     private final int retrievalLimit;
     private final double minimumRelevanceScore;
 
@@ -52,6 +55,7 @@ public class InvestigationManagement {
             InvestigationIdGenerator investigationIds,
             QuestionIdGenerator questionIds,
             Clock clock,
+            InvestigationOperationalMetrics metrics,
             @Value("${qip.investigations.retrieval-limit}") int retrievalLimit,
             @Value("${qip.investigations.minimum-relevance-score}") double minimumRelevanceScore) {
         if (retrievalLimit < 1 || retrievalLimit > 20) {
@@ -69,15 +73,20 @@ public class InvestigationManagement {
         this.investigationIds = investigationIds;
         this.questionIds = questionIds;
         this.clock = clock;
+        this.metrics = metrics;
         this.retrievalLimit = retrievalLimit;
         this.minimumRelevanceScore = minimumRelevanceScore;
     }
 
+    @Transactional
     public InvestigationSnapshot create(UUID incidentId) {
-        incidents.getIncident(incidentId);
+        incidents.markInvestigationStarted(incidentId);
         Instant now = Instant.now(clock);
         Investigation investigation = repository.createIfAbsent(new Investigation(
                 investigationIds.nextId(), incidentId, InvestigationStatus.OPEN, null, null, null, now, now));
+        if (investigation.status() == InvestigationStatus.CLOSED) {
+            incidents.markInvestigationCompleted(incidentId);
+        }
         return snapshot(investigation);
     }
 
@@ -123,16 +132,19 @@ public class InvestigationManagement {
                 if (prompt.passages().isEmpty()) {
                     completed = insufficient(processing, retrievedCount, Instant.now(clock));
                 } else {
-                    completed = validateAnswer(processing, answers.generate(prompt), prompt, retrievedCount);
+                    completed = validateAnswer(processing, generateAnswer(prompt), prompt, retrievedCount);
                 }
             }
         } catch (RuntimeException exception) {
             completed = technicalFailure(processing, exception, retrievedCount);
         }
         Investigation updated = investigation.touch(completed.completedAt());
-        return snapshot(repository.completeQuestion(completed, updated));
+        QuestionAnswerSnapshot snapshot = snapshot(repository.completeQuestion(completed, updated));
+        metrics.recordAnswer(completed.status());
+        return snapshot;
     }
 
+    @Transactional
     public InvestigationSnapshot close(UUID investigationId, CloseInvestigationCommand command) {
         Investigation investigation = find(investigationId);
         investigation.requireOpen();
@@ -145,7 +157,21 @@ public class InvestigationManagement {
             throw new InvalidInvestigationStateException("At least one confirmed finding is required before closure");
         }
         Investigation closed = investigation.close(command.summary(), command.closedBy(), Instant.now(clock));
-        return snapshot(repository.close(closed));
+        InvestigationSnapshot snapshot = snapshot(repository.close(closed));
+        incidents.markInvestigationCompleted(investigation.incidentId());
+        return snapshot;
+    }
+
+    private AnswerGenerationResult generateAnswer(GroundedPrompt prompt) {
+        Timer.Sample sample = metrics.startModel();
+        try {
+            AnswerGenerationResult generated = answers.generate(prompt);
+            metrics.recordModel(sample, "success");
+            return generated;
+        } catch (RuntimeException exception) {
+            metrics.recordModel(sample, "failure");
+            throw exception;
+        }
     }
 
     private InvestigationQuestion validateAnswer(

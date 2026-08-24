@@ -52,6 +52,8 @@ class SecurityConfiguration {
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**")
                         .permitAll()
+                        .requestMatchers("/actuator/metrics", "/actuator/metrics/**")
+                        .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/session")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/session/login")

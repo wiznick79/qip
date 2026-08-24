@@ -13,6 +13,22 @@ export type UserSession = {
   csrfToken: string;
 };
 
+export type HealthStatus = {
+  status: string;
+};
+
+export type MetricMeasurement = {
+  statistic: "COUNT" | "TOTAL" | "TOTAL_TIME" | "MAX" | "VALUE" | string;
+  value: number;
+};
+
+export type MetricSnapshot = {
+  name: string;
+  description: string | null;
+  baseUnit: string | null;
+  measurements: MetricMeasurement[];
+};
+
 export type AssetType = "MACHINE" | "PRODUCTION_LINE" | "TOOL" | "OTHER";
 
 export type Asset = {

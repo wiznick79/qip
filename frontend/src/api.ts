@@ -10,6 +10,8 @@ import type {
   Investigation,
   Finding,
   FindingStatus,
+  HealthStatus,
+  MetricSnapshot,
   Page,
   ProblemDetails,
   SourceDocument,
@@ -78,6 +80,13 @@ export const api = {
   logout: async () => {
     await request<void>("/api/session/logout", { method: "POST" });
     return api.getSession();
+  },
+  getHealth: () => request<HealthStatus>("/actuator/health"),
+  getMetric: (name: string, tags: Record<string, string> = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(tags).forEach(([tag, value]) => query.append("tag", tag + ":" + value));
+    const suffix = query.size > 0 ? "?" + query.toString() : "";
+    return request<MetricSnapshot>("/actuator/metrics/" + encodeURIComponent(name) + suffix);
   },
   listAssets: () => request<Page<Asset>>("/api/assets?page=0&size=100"),
   createAsset: (input: { name: string; type: AssetType; externalReference: string | null }) =>
