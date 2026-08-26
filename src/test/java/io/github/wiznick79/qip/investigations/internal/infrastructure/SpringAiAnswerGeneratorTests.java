@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.wiznick79.qip.investigations.internal.application.AnswerGenerationException;
@@ -97,7 +99,28 @@ class SpringAiAnswerGeneratorTests {
 
         assertThatThrownBy(() -> generator.generate(prompt()))
                 .isInstanceOf(AnswerGenerationException.class)
-                .hasMessage("Answer provider returned conflicting response blocks");
+                .hasMessage("Answer provider returned conflicting response blocks")
+                .extracting(exception -> ((AnswerGenerationException) exception).attemptedModelId())
+                .isEqualTo("ollama:qwen3-coder:30b");
+        verify(model, times(2)).call(anyString());
+    }
+
+    @Test
+    void retriesOnceWhenTheFirstResponseBreaksTheProtocol() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.call(anyString()))
+                .thenReturn("The answer is probably a seal failure.")
+                .thenReturn("""
+                        STATUS: GROUNDED
+                        CITATIONS: 00000000-0000-0000-0000-000000000891
+                        ANSWER: Inspect the synthetic seal.
+                        """);
+        var generator = generator(model);
+
+        var answer = generator.generate(prompt());
+
+        assertThat(answer.answer()).isEqualTo("Inspect the synthetic seal.");
+        verify(model, times(2)).call(anyString());
     }
 
     @Test
@@ -149,6 +172,6 @@ class SpringAiAnswerGeneratorTests {
     }
 
     private static GroundedPrompt prompt() {
-        return new GroundedPrompt("grounded-answer-v2", "Synthetic bounded prompt", List.of());
+        return new GroundedPrompt("grounded-answer-v3", "Synthetic bounded prompt", List.of());
     }
 }

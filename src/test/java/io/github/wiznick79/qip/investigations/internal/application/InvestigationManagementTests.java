@@ -53,7 +53,7 @@ class InvestigationManagementTests {
             assertThat(citation.documentId()).isEqualTo(DOCUMENT_ID);
             assertThat(citation.pageNumber()).isEqualTo(2);
         });
-        assertThat(answer.promptVersion()).isEqualTo("grounded-answer-v2");
+        assertThat(answer.promptVersion()).isEqualTo("grounded-answer-v3");
         assertThat(repository.questions)
                 .singleElement()
                 .extracting(InvestigationQuestion::status)
@@ -76,6 +76,19 @@ class InvestigationManagementTests {
         assertThat(answer.citations()).isEmpty();
         assertThat(answer.modelId()).isNull();
         assertThat(called).isFalse();
+    }
+
+    @Test
+    void retainsModelAttributionWhenTheModelDeclaresEvidenceInsufficient() {
+        AnswerGenerator generator = prompt -> new AnswerGenerationResult(
+                false, "The source does not answer the question.", List.of(), "fake-chat-v1");
+        var management = management(new InMemoryRepository(), query -> List.of(passage(0.8)), generator);
+        UUID investigationId = management.create(INCIDENT_ID).id();
+
+        var answer = management.ask(investigationId, new AskQuestionCommand("Unknown condition?", Set.of()));
+
+        assertThat(answer.status()).isEqualTo(AnswerStatus.INSUFFICIENT_EVIDENCE);
+        assertThat(answer.modelId()).isEqualTo("fake-chat-v1");
     }
 
     @Test
@@ -105,6 +118,21 @@ class InvestigationManagementTests {
 
         assertThat(answer.status()).isEqualTo(AnswerStatus.TECHNICAL_FAILURE);
         assertThat(answer.failureReason()).isEqualTo("Question answering failed");
+    }
+
+    @Test
+    void retainsAttemptedModelAttributionForControlledAnswerFailures() {
+        AnswerGenerator generator = prompt -> {
+            throw new AnswerGenerationException(
+                    "Answer provider returned conflicting response blocks", null, "ollama:qwen3-coder:30b");
+        };
+        var management = management(new InMemoryRepository(), query -> List.of(passage(0.8)), generator);
+        UUID investigationId = management.create(INCIDENT_ID).id();
+
+        var answer = management.ask(investigationId, new AskQuestionCommand("What happened?", Set.of()));
+
+        assertThat(answer.status()).isEqualTo(AnswerStatus.TECHNICAL_FAILURE);
+        assertThat(answer.modelId()).isEqualTo("ollama:qwen3-coder:30b");
     }
 
     @Test
@@ -170,7 +198,7 @@ class InvestigationManagementTests {
         assertThat(prompt.text()).contains("do not include UUIDs, passage IDs, or citation annotations");
         assertThat(prompt.text()).contains("<source passage-id=\"" + PASSAGE_ID + "\"");
         assertThat(prompt.passages()).hasSize(1);
-        assertThat(prompt.version()).isEqualTo("grounded-answer-v2");
+        assertThat(prompt.version()).isEqualTo("grounded-answer-v3");
     }
 
     private static InvestigationManagement management(

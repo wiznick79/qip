@@ -95,6 +95,7 @@ spring:
         pull-model-strategy: never
       chat:
         model: ${QIP_OLLAMA_CHAT_MODEL:qwen3-coder:30b}
+        num-ctx: ${QIP_OLLAMA_CHAT_CONTEXT_LENGTH:8192}
         temperature: 0.1
         num-predict: 800
         keep-alive: 5m

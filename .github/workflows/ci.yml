@@ -40,6 +40,23 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate hosted deployment artifacts
+        shell: bash
+        run: |
+          sh -n scripts/deploy-hosted.sh
+          sh -n scripts/backup-hosted.sh
+          printf 'QIP_IMAGE=ghcr.io/wiznick79/qip:0.1.0\n' > /tmp/qip-deployment.env
+          docker compose \
+            --env-file deploy/.env.hosted.example \
+            --env-file /tmp/qip-deployment.env \
+            -f deploy/compose.hosted.yaml \
+            config --quiet
+          docker run --rm \
+            -e QIP_DOMAIN=qip.example.com \
+            -e QIP_TLS_EMAIL=operator@example.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10.2-alpine \
+            caddy validate --config /etc/caddy/Caddyfile
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Build production image

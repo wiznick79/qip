@@ -17,11 +17,13 @@ Default the local base URL to `http://localhost:11434`, chat model to `qwen3-cod
 
 Bound HTTP connection attempts to five seconds and model response reads to three minutes by default, both configurable for slower hardware. Limit transient provider retries to two short attempts so a local outage does not hold an application request through Spring AI's much longer generic retry defaults.
 
-Continue to treat all provider output as untrusted. The application parses a narrow response protocol, accepts optional Markdown fencing only, validates every citation UUID against the exact retrieved passage set, and converts provider or format errors into controlled technical failures.
+Continue to treat all provider output as untrusted. The application parses a narrow response protocol, accepts optional Markdown fencing only, validates every citation UUID against the exact retrieved passage set, and converts provider or format errors into controlled technical failures. If a response violates the protocol, retry once with an explicit correction that requires one response block; reject the second invalid response without exposing either raw provider payload, while retaining the attempted model identifier for diagnostics.
 
 Permit the existing indexing operation to deliberately re-index an `INDEXED` document. The document enters `INDEXING`, making old passages ineligible for retrieval, and the new passage/vector set atomically replaces the old set only after all embeddings succeed. This supports switching from deterministic to Ollama embeddings without stale-vector mixing.
 
 Keep live-model tests opt-in through `QIP_LIVE_MODEL_TEST=true`. Isolate them from PostgreSQL and verify both completion protocol handling and finite embedding output. Default verification skips these tests and remains network- and credential-free.
+
+Request an explicit 8,192-token chat context by default rather than inheriting a model's native maximum. QIP supplies at most 12,000 evidence characters and permits at most 800 generated tokens, while newer models may advertise 256K contexts whose KV cache forces otherwise suitable models out of limited VRAM. Keep the context configurable and use `ollama ps` when selecting a hardware-specific override.
 
 ## Alternatives considered
 

@@ -51,3 +51,5 @@ Define and automate a modest hosted deployment for the released container.
 - Publish a safe synthetic demonstration, or document why an on-demand/private demo is preferable.
 
 This milestone does not justify Kubernetes, microservices, Kafka, or a separate frontend deployment by itself.
+
+Implemented with ADR 0014, a portable single-VM Compose topology targeting a 2 GB Lightsail instance, Caddy-managed TLS, private application/database networking, separate persistent volumes, host-only secrets, bounded backups, attested semantic-release deployment, readiness-based automatic rollback, and an explicit private/on-demand synthetic-demo policy.

@@ -1,0 +1,99 @@
+name: Deploy hosted portfolio
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy a release or restore the previously healthy image
+        required: true
+        type: choice
+        options:
+          - deploy
+          - rollback
+      release_tag:
+        description: Semantic release tag used by deploy (for example v0.2.0)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+  attestations: read
+
+concurrency:
+  group: hosted-portfolio
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: portfolio
+      url: https://${{ vars.QIP_HOSTED_DOMAIN }}
+    steps:
+      - name: Resolve and verify released image
+        if: inputs.operation == 'deploy'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "A deploy requires release_tag in vMAJOR.MINOR.PATCH form." >&2
+            exit 1
+          fi
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_TAG#v}"
+          gh attestation verify "oci://${image}" --repo "${GITHUB_REPOSITORY}"
+          echo "QIP_DEPLOY_IMAGE=${image}" >> "${GITHUB_ENV}"
+
+      - name: Check out tagged deployment configuration
+        if: inputs.operation == 'deploy'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Configure pinned SSH host identity
+        env:
+          HOSTED_SSH_KEY: ${{ secrets.QIP_HOSTED_SSH_KEY }}
+          HOSTED_KNOWN_HOSTS: ${{ secrets.QIP_HOSTED_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${HOSTED_SSH_KEY}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${HOSTED_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload versioned deployment configuration
+        if: inputs.operation == 'deploy'
+        env:
+          HOST: ${{ secrets.QIP_HOSTED_HOST }}
+          USER: ${{ secrets.QIP_HOSTED_USER }}
+        shell: bash
+        run: |
+          tar -czf hosted-deployment.tgz \
+            deploy/compose.hosted.yaml \
+            deploy/Caddyfile \
+            deploy/.env.hosted.example \
+            scripts/deploy-hosted.sh \
+            scripts/backup-hosted.sh
+          scp hosted-deployment.tgz "${USER}@${HOST}:/tmp/qip-hosted-deployment.tgz"
+          ssh "${USER}@${HOST}" \
+            'mkdir -p /opt/qip && tar -xzf /tmp/qip-hosted-deployment.tgz -C /opt/qip && chmod 700 /opt/qip/scripts/*.sh && rm /tmp/qip-hosted-deployment.tgz'
+
+      - name: Deploy release
+        if: inputs.operation == 'deploy'
+        env:
+          HOST: ${{ secrets.QIP_HOSTED_HOST }}
+          USER: ${{ secrets.QIP_HOSTED_USER }}
+        shell: bash
+        run: ssh "${USER}@${HOST}" "/opt/qip/scripts/deploy-hosted.sh deploy '${QIP_DEPLOY_IMAGE}'"
+
+      - name: Roll back to previous healthy release
+        if: inputs.operation == 'rollback'
+        env:
+          HOST: ${{ secrets.QIP_HOSTED_HOST }}
+          USER: ${{ secrets.QIP_HOSTED_USER }}
+        shell: bash
+        run: ssh "${USER}@${HOST}" '/opt/qip/scripts/deploy-hosted.sh rollback'

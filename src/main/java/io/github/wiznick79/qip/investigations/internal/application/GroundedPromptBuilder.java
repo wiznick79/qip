@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 class GroundedPromptBuilder {
 
-    static final String VERSION = "grounded-answer-v2";
+    static final String VERSION = "grounded-answer-v3";
 
     private final int maxContextCharacters;
 
@@ -46,10 +46,12 @@ class GroundedPromptBuilder {
                 Passage UUIDs are machine-readable metadata. Put them only on the CITATIONS line.
                 Write the ANSWER for a person: do not include UUIDs, passage IDs, or citation annotations in it.
 
-                Return exactly this format:
-                STATUS: GROUNDED or INSUFFICIENT_EVIDENCE
-                CITATIONS: comma-separated passage UUIDs, or NONE
-                ANSWER: concise answer
+                Return exactly one response block with each field appearing once and no text before or after it.
+                Choose one exact status value: `GROUNDED` or `INSUFFICIENT_EVIDENCE`.
+                Line 1: STATUS followed by the selected value.
+                Line 2: CITATIONS followed by one or more comma-separated passage UUIDs for GROUNDED, otherwise NONE.
+                Line 3: ANSWER followed by the concise answer.
+                Use the field labels STATUS:, CITATIONS:, and ANSWER: exactly once each.
 
                 QUESTION:
                 %s

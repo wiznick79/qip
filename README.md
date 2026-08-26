@@ -21,7 +21,7 @@ _Grounded investigation workspace using fictional equipment and manuals. Local O
 | AI safety | Bounded retrieval, untrusted-document handling, versioned prompts, citation validation, insufficient-evidence behavior, deterministic test adapters, and optional local Ollama models |
 | Human workflow | Authenticated attribution, role-bounded review and closure, incident observations and evidence, immutable review history, and explicit case closure |
 | Frontend | React and TypeScript investigation workspace with paginated case navigation, upload status, grounded-answer states, citations, review controls, and administrator operations diagnostics |
-| Delivery | Testcontainers integration tests, frontend verification, GitHub Actions, a non-root multi-stage image, one-command Compose startup, attested tag releases, and bounded operational diagnostics |
+| Delivery | Testcontainers integration tests, frontend verification, GitHub Actions, a non-root multi-stage image, one-command local Compose, attested tag releases, bounded diagnostics, and an automated TLS-hosted deployment with rollback |
 
 ### Five-minute credential-free tour
 
@@ -37,7 +37,7 @@ Open `http://localhost:8080/` and sign in as `qip-admin` / `qip-admin-local-only
 
 ### Deliberate boundaries
 
-This is a local portfolio application, not production machinery-control software. Its configurable in-memory users demonstrate authenticated attribution and role boundaries; enterprise identity, user administration, multi-tenancy, hosted deployment, OCR, enterprise integrations, and an external observability stack remain deferred. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
+This is portfolio software, not production machinery-control software. Its configurable in-memory users demonstrate authenticated attribution and role boundaries; enterprise identity, user administration, multi-tenancy, OCR, enterprise integrations, and an external observability stack remain deferred. The hosted topology is an on-demand single-VM demonstration, not a production SLA. The model has no SQL, filesystem, credential, unrestricted HTTP, or implicit tool access.
 
 Start with:
 
@@ -56,8 +56,10 @@ Start with:
 - [ADR 0011: attested GitHub releases and GHCR images](docs/adr/0011-publish-attested-github-releases.md)
 - [ADR 0012: authenticated human actions](docs/adr/0012-authenticate-human-actions-with-spring-security.md)
 - [ADR 0013: in-process observability baseline](docs/adr/0013-use-in-process-observability-baseline.md)
+- [ADR 0014: single-instance hosted portfolio deployment](docs/adr/0014-deploy-the-portfolio-demo-to-a-single-lightsail-instance.md)
 - [Post-v0.1 roadmap](docs/roadmap.md)
 - [Local MVP demonstration](docs/demo.md)
+- [Hosted portfolio deployment](docs/hosting.md)
 - [Release process](docs/releasing.md)
 - [Changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md)
@@ -230,8 +232,11 @@ The defaults match the initial local development setup:
 ```text
 QIP_OLLAMA_BASE_URL=http://localhost:11434
 QIP_OLLAMA_CHAT_MODEL=qwen3-coder:30b
+QIP_OLLAMA_CHAT_CONTEXT_LENGTH=8192
 QIP_OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
 ```
+
+QIP explicitly requests an 8K chat context. Its evidence payload is already bounded to 12,000 characters and answers to 800 generated tokens, so larger native model contexts add memory cost without improving this workflow. On a 10 GB RTX 3080, `gemma4:12b` was measured at 100% GPU residency with 8K, compared with 89% GPU at 16K and 56% GPU at its 256K native context. Override `QIP_OLLAMA_CHAT_CONTEXT_LENGTH` only after checking the resulting allocation with `ollama ps`.
 
 QIP never pulls models automatically. Override those environment variables to select other installed tags. Model output remains untrusted: malformed responses and unknown citation identifiers are rejected by application-owned validation.
 
@@ -262,7 +267,7 @@ Vite serves the development UI at `http://localhost:5173` and proxies `/api` to 
 
 The web client opens on a compact dashboard with workflow totals, recent incidents, and direct actions. It also covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Successfully closing an investigation automatically resolves its incident; moving that resolved incident to `CLOSED` remains an optional later archival action. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
 
-The v0.1.0 release established the complete local MVP, reproducible container packaging, and tag-driven artifact publication. Milestones 14–16 add authenticated attribution, repeatable RAG evaluation, and bounded operational diagnostics without changing the modular-monolith boundary. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without provider credentials.
+The v0.1.0 release established the complete local MVP, reproducible container packaging, and tag-driven artifact publication. Milestones 14–17 add authenticated attribution, repeatable RAG evaluation, bounded operational diagnostics, and a modest hosted deployment without changing the modular-monolith boundary. Deterministic fake embedding and answer models remain the default, while the explicit `ollama` profile enables local semantic retrieval and grounded answer generation without provider credentials.
 
 API and operational endpoints are available while QIP is running:
 

@@ -1,0 +1,89 @@
+name: qip-hosted
+
+services:
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    depends_on:
+      qip:
+        condition: service_healthy
+    environment:
+      QIP_DOMAIN: ${QIP_DOMAIN:?Set QIP_DOMAIN in .env}
+      QIP_TLS_EMAIL: ${QIP_TLS_EMAIL:?Set QIP_TLS_EMAIL in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - qip-caddy-data:/data
+      - qip-caddy-config:/config
+    security_opt:
+      - no-new-privileges:true
+
+  qip:
+    image: ${QIP_IMAGE:?Deploy a released QIP image}
+    container_name: qip-hosted-qip
+    restart: unless-stopped
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      QIP_DB_HOST: postgres
+      QIP_DB_PORT: 5432
+      QIP_DB_NAME: ${QIP_DB_NAME:-qip}
+      QIP_DB_USERNAME: ${QIP_DB_USERNAME:-qip}
+      QIP_DB_PASSWORD: ${QIP_DB_PASSWORD:?Set QIP_DB_PASSWORD in .env}
+      QIP_DOCUMENT_STORAGE_DIRECTORY: /app/data/documents
+      QIP_INVESTIGATOR_USERNAME: ${QIP_INVESTIGATOR_USERNAME:?Set QIP_INVESTIGATOR_USERNAME in .env}
+      QIP_INVESTIGATOR_PASSWORD: ${QIP_INVESTIGATOR_PASSWORD:?Set QIP_INVESTIGATOR_PASSWORD in .env}
+      QIP_REVIEWER_USERNAME: ${QIP_REVIEWER_USERNAME:?Set QIP_REVIEWER_USERNAME in .env}
+      QIP_REVIEWER_PASSWORD: ${QIP_REVIEWER_PASSWORD:?Set QIP_REVIEWER_PASSWORD in .env}
+      QIP_ADMIN_USERNAME: ${QIP_ADMIN_USERNAME:?Set QIP_ADMIN_USERNAME in .env}
+      QIP_ADMIN_PASSWORD: ${QIP_ADMIN_PASSWORD:?Set QIP_ADMIN_PASSWORD in .env}
+      QIP_CONSOLE_LOG_FORMAT: logstash
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      - qip-document-data:/app/data/documents
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
+    container_name: qip-hosted-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${QIP_DB_NAME:-qip}
+      POSTGRES_USER: ${QIP_DB_USERNAME:-qip}
+      POSTGRES_PASSWORD: ${QIP_DB_PASSWORD:?Set QIP_DB_PASSWORD in .env}
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - qip-postgres-data:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  qip-caddy-data:
+    name: qip-hosted-caddy-data
+  qip-caddy-config:
+    name: qip-hosted-caddy-config
+  qip-document-data:
+    name: qip-hosted-document-data
+  qip-postgres-data:
+    name: qip-hosted-postgres-data

@@ -92,7 +92,7 @@ class InvestigationApiIntegrationTests {
                 .andExpect(jsonPath("$.citations[0].documentId").value(documentId))
                 .andExpect(jsonPath("$.citations[0].pageNumber").value(1))
                 .andExpect(jsonPath("$.modelId").value("deterministic-grounded-v1"))
-                .andExpect(jsonPath("$.promptVersion").value("grounded-answer-v2"))
+                .andExpect(jsonPath("$.promptVersion").value("grounded-answer-v3"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
