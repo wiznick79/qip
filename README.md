@@ -227,16 +227,17 @@ Start Ollama with the required models already installed, then run QIP with both 
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local,ollama"
 ```
 
-The defaults match the initial local development setup:
+The defaults reflect the local model comparison fixture and remain configurable:
 
 ```text
 QIP_OLLAMA_BASE_URL=http://localhost:11434
-QIP_OLLAMA_CHAT_MODEL=qwen3-coder:30b
+QIP_OLLAMA_CHAT_MODEL=qwen3.5:9b
 QIP_OLLAMA_CHAT_CONTEXT_LENGTH=8192
+QIP_OLLAMA_CHAT_THINK=false
 QIP_OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
 ```
 
-QIP explicitly requests an 8K chat context. Its evidence payload is already bounded to 12,000 characters and answers to 800 generated tokens, so larger native model contexts add memory cost without improving this workflow. On a 10 GB RTX 3080, `gemma4:12b` was measured at 100% GPU residency with 8K, compared with 89% GPU at 16K and 56% GPU at its 256K native context. Override `QIP_OLLAMA_CHAT_CONTEXT_LENGTH` only after checking the resulting allocation with `ollama ps`.
+QIP explicitly requests an 8K chat context and disables model thinking. Its evidence payload is already bounded to 12,000 characters and answers to 800 generated tokens, so larger native model contexts add memory cost without improving the current workflow. In local measurements on a 10 GB RTX 3080, `qwen3.5:9b` remained fully GPU-resident at 16K, 32K, and 64K, but a 128K allocation required CPU offload. Override `QIP_OLLAMA_CHAT_CONTEXT_LENGTH` or set `QIP_OLLAMA_CHAT_THINK=true` only for a measured use case, then check allocation with `ollama ps`.
 
 QIP never pulls models automatically. Override those environment variables to select other installed tags. Model output remains untrusted: malformed responses and unknown citation identifiers are rejected by application-owned validation.
 
@@ -304,3 +305,11 @@ The versioned grounded-answer quality gate is under `samples/evaluation/`. It me
 ```
 
 The Markdown report is written to `target/rag-evaluation/report.md`. A running local Ollama installation can be compared explicitly with `.\scripts\run-rag-evaluation.ps1 -Ollama`; this live path is excluded from the default build and never downloads models automatically. See [the evaluation-set documentation](samples/evaluation/README.md) and [demo walkthrough](docs/demo.md).
+
+To compare several installed Ollama chat models under identical QIP conditions, generate a blinded answer-quality scorecard and separate identity key:
+
+```powershell
+.\scripts\compare-ollama-models.ps1
+```
+
+Score the responses before opening the reveal file, then run `.\scripts\summarize-ollama-model-comparison.ps1` for the final quality, hard-gate, failure, and latency ranking. The default comparison uses an 8K context with thinking disabled; no model is downloaded automatically. Full instructions and scoring criteria are in the [evaluation-set documentation](samples/evaluation/README.md#blinded-local-model-comparison).
