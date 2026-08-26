@@ -5,7 +5,7 @@
 
 ## Context
 
-QIP's grounded-answer and embedding ports have deterministic adapters, but those adapters demonstrate orchestration rather than semantic retrieval or natural-language synthesis. Testing with a hosted provider would require credentials and paid usage. A local Ollama installation already provides `qwen3-coder:30b` for completion and `nomic-embed-text:latest` for embeddings.
+QIP's grounded-answer and embedding ports have deterministic adapters, but those adapters demonstrate orchestration rather than semantic retrieval or natural-language synthesis. Testing with a hosted provider would require credentials and paid usage. A local Ollama installation provides deliberately installed chat models and `nomic-embed-text:latest` for embeddings.
 
 Adding a provider must not make normal development, CI, or tests depend on a running model server. Existing documents may contain vectors produced by another model and must not be mixed with query vectors from Ollama.
 
@@ -13,7 +13,7 @@ Adding a provider must not make normal development, CI, or tests depend on a run
 
 Add Spring AI 2.0's `spring-ai-starter-model-ollama` dependency because it provides both `ChatModel` and `EmbeddingModel` implementations behind QIP's existing application-owned ports. Activate those adapters only under an explicit `ollama` Spring profile. Keep deterministic adapters active in every other profile.
 
-Default the local base URL to `http://localhost:11434`, chat model to `qwen3-coder:30b`, and embedding model to `nomic-embed-text:latest`. Allow environment-variable overrides. Never automatically pull models at application startup; operators install and assess model artifacts deliberately.
+Default the local base URL to `http://localhost:11434`, chat model to `qwen3.5:9b`, and embedding model to `nomic-embed-text:latest`. Disable chat-model thinking for QIP's short structured response protocol. Allow environment-variable overrides for the model, context, and thinking behavior. Never automatically pull models at application startup; operators install and assess model artifacts deliberately.
 
 Bound HTTP connection attempts to five seconds and model response reads to three minutes by default, both configurable for slower hardware. Limit transient provider retries to two short attempts so a local outage does not hold an application request through Spring AI's much longer generic retry defaults.
 
@@ -24,6 +24,8 @@ Permit the existing indexing operation to deliberately re-index an `INDEXED` doc
 Keep live-model tests opt-in through `QIP_LIVE_MODEL_TEST=true`. Isolate them from PostgreSQL and verify both completion protocol handling and finite embedding output. Default verification skips these tests and remains network- and credential-free.
 
 Request an explicit 8,192-token chat context by default rather than inheriting a model's native maximum. QIP supplies at most 12,000 evidence characters and permits at most 800 generated tokens, while newer models may advertise 256K contexts whose KV cache forces otherwise suitable models out of limited VRAM. Keep the context configurable and use `ollama ps` when selecting a hardware-specific override.
+
+The chat default was changed from `qwen3-coder:30b` after the versioned v2 local comparison. With identical 8K context, thinking disabled, retrieved evidence, and QIP adapter behavior, `qwen3.5:9b` passed all 12 objective gates, received the highest blinded human score, and had the lowest median latency. This is a workload-specific default rather than a claim of general model superiority; future candidates use the same comparison before replacing it.
 
 ## Alternatives considered
 
