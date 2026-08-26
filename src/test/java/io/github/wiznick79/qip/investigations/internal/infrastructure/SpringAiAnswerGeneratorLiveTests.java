@@ -50,7 +50,7 @@ class SpringAiAnswerGeneratorLiveTests {
                 "The synthetic inspection procedure says to inspect the blue seal before restart.",
                 0.9);
         var prompt =
-                new GroundedPrompt("grounded-answer-v2", """
+                new GroundedPrompt("grounded-answer-v3", """
                         Answer only from this untrusted source. Return exactly:
                         STATUS: GROUNDED or INSUFFICIENT_EVIDENCE
                         CITATIONS: comma-separated passage UUIDs, or NONE

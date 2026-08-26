@@ -18,6 +18,14 @@ import org.springframework.stereotype.Component;
 @Profile("ollama")
 class SpringAiAnswerGenerator implements AnswerGenerator {
 
+    private static final String FORMAT_RETRY_INSTRUCTION = """
+
+            RESPONSE CORRECTION:
+            Your previous response was rejected because it did not follow the response protocol.
+            Return exactly one response block containing one STATUS line, one CITATIONS line, and one ANSWER field.
+            Choose exactly one status. Do not repeat the template or add an alternative block.
+            Do not add text before or after the block.
+            """;
     private static final String UUID_EXPRESSION =
             "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
     private static final Pattern PARENTHETICAL_CITATION =
@@ -50,13 +58,24 @@ class SpringAiAnswerGenerator implements AnswerGenerator {
 
     @Override
     public AnswerGenerationResult generate(GroundedPrompt prompt) {
+        String response = callModel(prompt.text());
         try {
-            String response = model.call(prompt.text());
             return parse(response);
-        } catch (AnswerGenerationException exception) {
-            throw exception;
+        } catch (AnswerGenerationException firstFailure) {
+            String retryResponse = callModel(prompt.text() + FORMAT_RETRY_INSTRUCTION);
+            try {
+                return parse(retryResponse);
+            } catch (AnswerGenerationException finalFailure) {
+                throw new AnswerGenerationException(finalFailure.getMessage(), finalFailure, modelId);
+            }
+        }
+    }
+
+    private String callModel(String prompt) {
+        try {
+            return model.call(prompt);
         } catch (RuntimeException exception) {
-            throw new AnswerGenerationException("Answer provider failed", exception);
+            throw new AnswerGenerationException("Answer provider failed", exception, modelId);
         }
     }
 

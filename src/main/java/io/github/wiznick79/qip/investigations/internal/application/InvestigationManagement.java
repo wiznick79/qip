@@ -180,18 +180,19 @@ public class InvestigationManagement {
             GroundedPrompt prompt,
             int retrievedCount) {
         Instant completedAt = Instant.now(clock);
+        if (generated.modelId() == null
+                || generated.modelId().isBlank()
+                || generated.modelId().length() > 120) {
+            throw new AnswerGenerationException("Generated answer model identifier is invalid");
+        }
         if (!generated.sufficient()) {
-            return insufficient(question, retrievedCount, completedAt);
+            return insufficient(
+                    question, retrievedCount, completedAt, generated.modelId().trim());
         }
         if (generated.answer() == null
                 || generated.answer().isBlank()
                 || generated.answer().length() > 4_000) {
             throw new AnswerGenerationException("Generated answer text is invalid");
-        }
-        if (generated.modelId() == null
-                || generated.modelId().isBlank()
-                || generated.modelId().length() > 120) {
-            throw new AnswerGenerationException("Generated answer model identifier is invalid");
         }
         Map<UUID, RetrievedPassage> allowed = new LinkedHashMap<>();
         prompt.passages().forEach(passage -> allowed.put(passage.passageId(), passage));
@@ -229,6 +230,11 @@ public class InvestigationManagement {
 
     private InvestigationQuestion insufficient(
             InvestigationQuestion question, int retrievedCount, Instant completedAt) {
+        return insufficient(question, retrievedCount, completedAt, null);
+    }
+
+    private InvestigationQuestion insufficient(
+            InvestigationQuestion question, int retrievedCount, Instant completedAt, String modelId) {
         return new InvestigationQuestion(
                 question.id(),
                 question.investigationId(),
@@ -237,7 +243,7 @@ public class InvestigationManagement {
                 AnswerStatus.INSUFFICIENT_EVIDENCE,
                 INSUFFICIENT_MESSAGE,
                 List.of(),
-                null,
+                modelId,
                 question.promptVersion(),
                 retrievedCount,
                 null,
@@ -250,6 +256,8 @@ public class InvestigationManagement {
         String reason = exception instanceof AnswerGenerationException && exception.getMessage() != null
                 ? truncate(exception.getMessage(), 500)
                 : "Question answering failed";
+        String attemptedModelId =
+                exception instanceof AnswerGenerationException answerFailure ? answerFailure.attemptedModelId() : null;
         return new InvestigationQuestion(
                 question.id(),
                 question.investigationId(),
@@ -258,7 +266,7 @@ public class InvestigationManagement {
                 AnswerStatus.TECHNICAL_FAILURE,
                 null,
                 List.of(),
-                null,
+                attemptedModelId,
                 question.promptVersion(),
                 retrievedCount,
                 reason,

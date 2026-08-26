@@ -35,11 +35,13 @@ describe("Investigation workspace", () => {
   let findings: Array<Record<string, unknown>>;
   let closed: boolean;
   let incidentStatus: "REPORTED" | "INVESTIGATING" | "RESOLVED";
+  let questionResponse: Record<string, unknown>;
 
   beforeEach(() => {
     findings = [];
     closed = false;
     incidentStatus = "INVESTIGATING";
+    questionResponse = groundedQuestion;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.startsWith("/api/assets?")) return json({ items: [asset], page: 0, size: 100, totalElements: 1 });
@@ -49,7 +51,7 @@ describe("Investigation workspace", () => {
         return json({ ...incident, status: incidentStatus });
       }
       if (url === "/api/incidents/incident-1/investigations") return json({ id: "investigation-1", incidentId: "incident-1", status: "OPEN", closureSummary: null, closedBy: null, closedAt: null, questions: [], findings: [], createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:00Z" });
-      if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(groundedQuestion);
+      if (url === "/api/investigations/investigation-1/questions" && init?.method === "POST") return json(questionResponse);
       if (url === "/api/investigations/investigation-1/findings" && init?.method === "POST") {
         const body = JSON.parse(String(init.body)) as { sourceQuestionId: string; summary: string };
         findings = [{ id: "finding-1", sourceQuestionId: body.sourceQuestionId, summary: body.summary,
@@ -81,7 +83,7 @@ describe("Investigation workspace", () => {
         incidentStatus = body.status;
         return json({ ...incident, status: incidentStatus, updatedAt: "2026-08-20T10:05:00Z" });
       }
-      if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", status: closed ? "CLOSED" : "OPEN", closureSummary: closed ? "The confirmed finding closes this case." : null, closedBy: closed ? "wiznick79" : null, closedAt: closed ? "2026-08-20T10:04:00Z" : null, questions: [groundedQuestion], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
+      if (url === "/api/investigations/investigation-1") return json({ id: "investigation-1", incidentId: "incident-1", status: closed ? "CLOSED" : "OPEN", closureSummary: closed ? "The confirmed finding closes this case." : null, closedBy: closed ? "wiznick79" : null, closedAt: closed ? "2026-08-20T10:04:00Z" : null, questions: [questionResponse], findings, createdAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:01:01Z" });
       return new Response(null, { status: 404 });
     });
   });
@@ -104,6 +106,26 @@ describe("Investigation workspace", () => {
     fireEvent.click(screen.getByText(/Synthetic pump manual · page 1/));
     expect(screen.getByText("Passage 1 · relevance 0.880")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Question")).toHaveValue(""));
+  });
+
+  it("identifies the model whose response was rejected", async () => {
+    questionResponse = {
+      ...groundedQuestion,
+      status: "TECHNICAL_FAILURE",
+      answer: null,
+      citations: [],
+      modelId: "ollama:qwen3-coder:30b",
+      failureReason: "Answer provider returned conflicting response blocks",
+    };
+    render(<InvestigationsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Select Synthetic pump leak incident/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
+    await screen.findByText("No questions yet");
+    fireEvent.change(screen.getByLabelText("Question"), { target: { value: "Is it fixable?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask with evidence" }));
+
+    expect(await screen.findByText("Answer provider returned conflicting response blocks")).toBeInTheDocument();
+    expect(screen.getByText(/Response rejected from ollama:qwen3-coder:30b/)).toBeInTheDocument();
   });
 
   it("moves a reported incident to investigating before opening its investigation", async () => {

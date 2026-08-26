@@ -5,6 +5,7 @@
 .env
 .env.*
 !.env.example
+!deploy/.env.hosted.example
 
 target/
 out/

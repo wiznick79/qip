@@ -288,6 +288,9 @@ function AnswerCard({
   onToggleDraft: () => void;
   onPropose: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const modelAttribution = item.modelId
+    ? item.status === "TECHNICAL_FAILURE" ? `Response rejected from ${item.modelId}` : item.modelId
+    : item.status === "INSUFFICIENT_EVIDENCE" ? "No model needed" : "Model attribution unavailable";
   return <article className="answer-card">
     <p className="question-text">{item.question}</p>
     <span className={`answer-status answer-status-${item.status.toLowerCase().replaceAll("_", "-")}`}>{item.status.replaceAll("_", " ")}</span>
@@ -299,7 +302,7 @@ function AnswerCard({
       <label>Finding summary<textarea name="summary" required maxLength={2000} rows={3} defaultValue={item.answer ?? ""} /></label>
       <button className="primary-button" disabled={busy}>{busy ? "Creating draft…" : "Create draft finding"}</button>
     </form> : null}
-    <footer>{item.modelId ?? "No model used"} · {item.promptVersion}</footer>
+    <footer>{modelAttribution} · {item.promptVersion}</footer>
   </article>;
 }
 
