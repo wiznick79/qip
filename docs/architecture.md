@@ -1,7 +1,7 @@
 # Architecture and MVP
 
-Status: v0.1.0 local MVP released; milestones 14–16 complete
-Last updated: 2026-08-24
+Status: v0.2.0 portfolio release; milestones 14–17 complete
+Last updated: 2026-08-26
 
 ## 1. Product definition
 

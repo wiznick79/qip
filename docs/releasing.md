@@ -16,8 +16,8 @@ QIP uses semantic `vMAJOR.MINOR.PATCH` Git tags as the release boundary. A tag t
 Create and push an annotated tag only after the checklist passes:
 
 ```shell
-git tag -a v0.1.0 -m "QIP v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "QIP v0.2.0"
+git push origin v0.2.0
 ```
 
 The release workflow verifies that the tag matches the Maven project version, rebuilds the frontend and backend, and publishes:
@@ -32,19 +32,19 @@ The workflow does not publish database data, uploaded documents, Ollama models, 
 ## Verify published artifacts
 
 ```shell
-gh release download v0.1.0
+gh release download v0.2.0
 sha256sum --check SHA256SUMS
-gh attestation verify qip-0.1.0.jar -R wiznick79/qip
-docker pull ghcr.io/wiznick79/qip:0.1.0
-gh attestation verify oci://ghcr.io/wiznick79/qip:0.1.0 -R wiznick79/qip
+gh attestation verify qip-0.2.0.jar -R wiznick79/qip
+docker pull ghcr.io/wiznick79/qip:0.2.0
+gh attestation verify oci://ghcr.io/wiznick79/qip:0.2.0 -R wiznick79/qip
 ```
 
-On PowerShell, compare `Get-FileHash .\qip-0.1.0.jar -Algorithm SHA256` with the value in `SHA256SUMS`.
+On PowerShell, compare `Get-FileHash .\qip-0.2.0.jar -Algorithm SHA256` with the value in `SHA256SUMS`.
 
 The published image can also be used with the repository's Compose topology:
 
 ```powershell
-$env:QIP_IMAGE = "ghcr.io/wiznick79/qip:0.1.0"
+$env:QIP_IMAGE = "ghcr.io/wiznick79/qip:0.2.0"
 docker compose pull qip
 docker compose up -d --no-build --wait
 ```

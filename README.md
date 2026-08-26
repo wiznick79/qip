@@ -125,7 +125,7 @@ To run entirely without Ollama, set `QIP_SPRING_PROFILES=local` in `.env`; QIP w
 After the first tagged release, Compose can run its published image without compiling source:
 
 ```powershell
-$env:QIP_IMAGE = "ghcr.io/wiznick79/qip:0.1.0"
+$env:QIP_IMAGE = "ghcr.io/wiznick79/qip:0.2.0"
 docker compose pull qip
 docker compose up -d --no-build --wait
 ```

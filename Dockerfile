@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG QIP_VERSION=0.1.0-SNAPSHOT
+ARG QIP_VERSION=0.2.0-SNAPSHOT
 
 FROM node:24.19.0-alpine AS frontend-build
 WORKDIR /workspace/frontend
