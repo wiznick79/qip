@@ -57,6 +57,7 @@ Start with:
 - [ADR 0012: authenticated human actions](docs/adr/0012-authenticate-human-actions-with-spring-security.md)
 - [ADR 0013: in-process observability baseline](docs/adr/0013-use-in-process-observability-baseline.md)
 - [ADR 0014: single-instance hosted portfolio deployment](docs/adr/0014-deploy-the-portfolio-demo-to-a-single-lightsail-instance.md)
+- [ADR 0015: PostgreSQL hybrid passage retrieval](docs/adr/0015-use-postgresql-hybrid-retrieval.md)
 - [Post-v0.1 roadmap](docs/roadmap.md)
 - [Local MVP demonstration](docs/demo.md)
 - [Hosted portfolio deployment](docs/hosting.md)
@@ -185,14 +186,15 @@ The document ingestion slice additionally provides:
 ```text
 POST /api/documents                         multipart fields: title, file
 GET  /api/documents/{documentId}
+GET  /api/documents/{documentId}/content   authenticated inline source content
 GET  /api/documents/{documentId}/status
 POST /api/documents/{documentId}/extraction retry failed extraction
 POST /api/documents/{documentId}/indexing   retry or deliberately re-index
 ```
 
-Uploads are limited to 10 MiB and to `application/pdf` or UTF-8 `text/plain`. QIP stores files outside the web root under generated keys, computes a SHA-256 checksum, returns the existing document for duplicate content, and extracts and indexes text synchronously without holding a database transaction open during file processing or embedding. PDF page numbers are retained for later citations. Malformed, encrypted, scanned-only, or extraction-limit-breaking PDFs remain visible as `EXTRACTION_FAILED`; embedding failures remain visible as `INDEXING_FAILED`. Both may be retried.
+Uploads are limited to 10 MiB and to `application/pdf` or UTF-8 `text/plain`. QIP stores files outside the web root under generated keys, computes a SHA-256 checksum, returns the existing document for duplicate content, and extracts and indexes text synchronously without holding a database transaction open during file processing or embedding. PDF page numbers are retained for later citations. Authenticated source inspection streams the original bytes inline through QIP with `no-store` caching and a safe content disposition; storage keys and paths are never exposed. Malformed, encrypted, scanned-only, or extraction-limit-breaking PDFs remain visible as `EXTRACTION_FAILED`; embedding failures remain visible as `INDEXING_FAILED`. Both may be retried.
 
-Extracted pages are split into bounded, overlapping passages and stored with pgvector embeddings. The default `deterministic-hash-v1` adapter is offline and credential-free for development and tests. It offers reproducible lexical similarity, not production semantic quality. The `ollama` profile replaces it with the locally configured Spring AI Ollama embedding model. Calling the indexing endpoint for an `INDEXED` document deliberately rebuilds and atomically replaces its passages, which is required after changing embedding models.
+Extracted pages are split into bounded, overlapping passages and stored with pgvector embeddings plus a PostgreSQL full-text search vector. QIP deterministically fuses bounded semantic and lexical rankings, so exact alarm codes and measurements can reinforce semantically related evidence while preserving document filters and provenance. The default `deterministic-hash-v1` adapter is offline and credential-free for development and tests. It offers reproducible lexical similarity, not production semantic quality. The `ollama` profile replaces it with the locally configured Spring AI Ollama embedding model. Calling the indexing endpoint for an `INDEXED` document deliberately rebuilds and atomically replaces its passages, which is required after changing embedding models.
 
 The storage directory defaults to `./data/documents` and can be overridden with `QIP_DOCUMENT_STORAGE_DIRECTORY`. Uploaded content and extracted text are intentionally ignored by Git.
 
@@ -213,7 +215,7 @@ POST /api/investigations/{investigationId}/findings/{findingId}/reviews
 POST /api/investigations/{investigationId}/closure
 ```
 
-Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. The default answer adapter is deterministic and offline. The opt-in `ollama` profile supplies local `EmbeddingModel` and `ChatModel` beans without API keys.
+Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. In the investigation workspace, each citation opens its authenticated source; PDF citations use the browser's native `#page=` navigation to jump to the cited page. The default answer adapter is deterministic and offline. The opt-in `ollama` profile supplies local `EmbeddingModel` and `ChatModel` beans without API keys.
 
 A grounded answer with validated citations can be explicitly proposed as a `DRAFT` finding. A separate review action records `CONFIRMED` or `REJECTED`, the authenticated reviewer, a mandatory rationale, and an append-only audit event. Insufficient or failed answers cannot become findings, and reviewed findings cannot be overwritten. Human attribution is derived from the authenticated session rather than trusted from request bodies; review requires `REVIEWER` or `ADMIN` and closure requires `INVESTIGATOR` or `ADMIN`.
 

@@ -1,8 +1,8 @@
 # Synthetic grounded-answer evaluation
 
-The current immutable case set is [`v1/rag-cases.csv`](v1/rag-cases.csv). A new directory is required for a material schema or scenario change; do not silently rewrite historical expectations to make a provider pass.
+The current immutable offline case set is [`v3/rag-cases.csv`](v3/rag-cases.csv). The original [`v1` baseline](v1/rag-cases.csv) remains unchanged, while `v2` is reserved for the separate live-model comparison. A new directory is required for a material schema or scenario change; do not silently rewrite historical expectations to make a provider pass.
 
-The seven offline cases cover three baseline retrieval questions, prompt injection embedded in an untrusted document, an unsupported generated claim, an invented citation, and insufficient retrieval. Expected pages, minimum relevance scores, and required evidence terms keep retrieval changes reviewable.
+The eight offline cases cover three baseline retrieval questions, an exact diagnostic-code case for hybrid ranking, prompt injection embedded in an untrusted document, an unsupported generated claim, an invented citation, and insufficient retrieval. Expected pages, minimum relevance scores, and required evidence terms keep retrieval changes reviewable.
 
 Run the deterministic quality gate with:
 

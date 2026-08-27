@@ -95,6 +95,25 @@ class DocumentManagementTests {
     }
 
     @Test
+    void returnsStoredContentWithoutExposingItsStorageKeyAndDefensivelyCopiesBytes() {
+        var uploaded = documents.upload(command("guide.txt", "source contents"));
+
+        DocumentContent content = documents.getContent(uploaded.document().id());
+        byte[] firstRead = content.bytes();
+        firstRead[0] = 'X';
+
+        assertThat(content.originalFilename()).isEqualTo("guide.txt");
+        assertThat(content.mediaType()).isEqualTo(DocumentMediaType.PLAIN_TEXT);
+        assertThat(new String(content.bytes(), StandardCharsets.UTF_8)).isEqualTo("source contents");
+    }
+
+    @Test
+    void rejectsContentRequestsForUnknownDocumentsBeforeReadingStorage() {
+        assertThatThrownBy(() -> documents.getContent(DOCUMENT_ID))
+                .isInstanceOf(io.github.wiznick79.qip.knowledge.api.DocumentNotFoundException.class);
+    }
+
+    @Test
     void recordsAControlledFailureAndAllowsRetry() {
         extractor.failure = new DocumentExtractionException("Synthetic parse failure");
         var failed = documents.upload(command("guide.txt", "content"));

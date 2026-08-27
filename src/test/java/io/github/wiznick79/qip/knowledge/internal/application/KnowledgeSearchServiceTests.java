@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.wiznick79.qip.knowledge.api.KnowledgeQuery;
@@ -23,9 +24,10 @@ class KnowledgeSearchServiceTests {
         PassageRepository passages = mock(PassageRepository.class);
         when(embeddings.embed(any())).thenReturn(List.of(new Embedding(List.of(1.0F))));
         when(embeddings.modelId()).thenReturn("synthetic-embedding");
-        when(passages.search(any(), anyString(), any(), anyInt()))
+        when(passages.searchSemantic(any(), anyString(), any(), anyInt()))
                 .thenReturn(List.of())
                 .thenThrow(new IllegalStateException("synthetic database failure"));
+        when(passages.searchLexical(anyString(), any(), anyInt())).thenReturn(List.of());
         var search = new KnowledgeSearchService(embeddings, passages, new KnowledgeOperationalMetrics(registry));
         var query = new KnowledgeQuery("synthetic query", Set.of(), 3);
 
@@ -42,5 +44,6 @@ class KnowledgeSearchServiceTests {
                         .timer()
                         .count())
                 .isEqualTo(1);
+        verify(passages).searchLexical("synthetic query", Set.of(), 9);
     }
 }

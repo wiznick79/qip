@@ -8,5 +8,7 @@ import java.util.UUID;
 public interface PassageRepository {
     void replaceAll(UUID documentId, List<KnowledgePassage> passages);
 
-    List<RetrievedPassage> search(Embedding query, String embeddingModel, Set<UUID> documentIds, int limit);
+    List<RetrievedPassage> searchSemantic(Embedding query, String embeddingModel, Set<UUID> documentIds, int limit);
+
+    List<RetrievedPassage> searchLexical(String query, Set<UUID> documentIds, int limit);
 }

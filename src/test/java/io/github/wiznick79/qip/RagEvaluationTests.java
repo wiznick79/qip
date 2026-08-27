@@ -91,7 +91,7 @@ class RagEvaluationTests {
     @Test
     void meetsTheVersionedOfflineGroundedAnswerQualityGateAndWritesAReport() throws Exception {
         List<EvaluationCase> cases = RagEvaluationFixture.readCases();
-        assertThat(cases).hasSizeGreaterThanOrEqualTo(7);
+        assertThat(cases).hasSizeGreaterThanOrEqualTo(8);
         Map<String, String> uploadedDocuments = new HashMap<>();
         List<CaseResult> results = new ArrayList<>();
 

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.github.wiznick79.qip.knowledge.api.KnowledgeQuery;
 import io.github.wiznick79.qip.knowledge.api.KnowledgeSearch;
+import io.github.wiznick79.qip.knowledge.internal.application.PassageRepository;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
@@ -51,6 +52,9 @@ class DocumentApiIntegrationTests {
 
     @Autowired
     private KnowledgeSearch knowledgeSearch;
+
+    @Autowired
+    private PassageRepository passageRepository;
 
     @BeforeEach
     void clearDocuments() {
@@ -161,6 +165,26 @@ class DocumentApiIntegrationTests {
                 .query(Integer.class)
                 .single();
         org.assertj.core.api.Assertions.assertThat(passageCount).isEqualTo(2);
+    }
+
+    @Test
+    void lexicalSearchMatchesUsefulTermsWithoutRequiringEveryNaturalLanguageWord() throws Exception {
+        String targetResponse = upload(
+                "conveyor.txt", "text/plain", "Alarm E17 indicates that the right belt-drift switch is active.", true);
+        String otherResponse =
+                upload("pump.txt", "text/plain", "Inspect the hydraulic return filter differential.", true);
+        UUID targetId = UUID.fromString(JsonPath.read(targetResponse, "$.id"));
+        UUID otherId = UUID.fromString(JsonPath.read(otherResponse, "$.id"));
+
+        var results = passageRepository.searchLexical(
+                "why did the packaging line stop yesterday with E17 active", Set.of(), 5);
+        var filtered = passageRepository.searchLexical(
+                "why did the packaging line stop yesterday with E17 active", Set.of(otherId), 5);
+
+        org.assertj.core.api.Assertions.assertThat(results).isNotEmpty();
+        org.assertj.core.api.Assertions.assertThat(results.getFirst().documentId())
+                .isEqualTo(targetId);
+        org.assertj.core.api.Assertions.assertThat(filtered).isEmpty();
     }
 
     @Test

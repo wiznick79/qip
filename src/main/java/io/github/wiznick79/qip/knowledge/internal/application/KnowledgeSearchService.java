@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 @Service
 class KnowledgeSearchService implements KnowledgeSearch {
 
+    private static final int CANDIDATE_MULTIPLIER = 3;
+    private static final int MAX_CANDIDATES_PER_RANKING = 60;
+
     private final EmbeddingGenerator embeddings;
     private final PassageRepository passages;
     private final KnowledgeOperationalMetrics metrics;
@@ -29,8 +32,11 @@ class KnowledgeSearchService implements KnowledgeSearch {
             if (vectors.size() != 1) {
                 throw new DocumentIndexingException("Embedding model returned an unexpected result count");
             }
-            List<RetrievedPassage> result =
-                    passages.search(vectors.getFirst(), embeddings.modelId(), query.documentIds(), query.limit());
+            int candidateLimit = Math.min(MAX_CANDIDATES_PER_RANKING, query.limit() * CANDIDATE_MULTIPLIER);
+            List<RetrievedPassage> semantic = passages.searchSemantic(
+                    vectors.getFirst(), embeddings.modelId(), query.documentIds(), candidateLimit);
+            List<RetrievedPassage> lexical = passages.searchLexical(query.text(), query.documentIds(), candidateLimit);
+            List<RetrievedPassage> result = ReciprocalRankFusion.fuse(semantic, lexical, query.limit());
             metrics.recordRetrieval(sample, "success");
             return result;
         } catch (RuntimeException exception) {

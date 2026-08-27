@@ -9,7 +9,7 @@ public final class RagEvaluationFixture {
     private static final String HEADER =
             "id,kind,document_file,question,expected_status," + "expected_page,minimum_score,required_terms";
 
-    public static final String VERSION = "v1";
+    public static final String VERSION = "v3";
     public static final Path DIRECTORY = Path.of("samples", "evaluation", VERSION);
     public static final Path CASES = DIRECTORY.resolve("rag-cases.csv");
 

@@ -1,0 +1,3 @@
+Synthetic indexing reference
+
+Diagnostic code ZQX-741 indicates that the guarded coolant interlock is open. Inspect the interlock connector before resetting the equipment.

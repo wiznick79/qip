@@ -55,6 +55,11 @@ class SecurityIntegrationTests {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Authentication required"))
                 .andExpect(jsonPath("$.status").value(401));
+
+        mockMvc.perform(get("/api/documents/00000000-0000-0000-0000-000000000001/content"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Authentication required"));
     }
 
     @Test

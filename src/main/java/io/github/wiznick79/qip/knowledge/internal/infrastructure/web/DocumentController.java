@@ -7,6 +7,9 @@ import jakarta.validation.constraints.Min;
 import java.io.IOException;
 import java.net.URI;
 import java.util.UUID;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -46,6 +49,23 @@ class DocumentController {
     @GetMapping("/{documentId}")
     DocumentResponse get(@PathVariable UUID documentId) {
         return DocumentResponse.from(documents.getDocument(documentId));
+    }
+
+    @GetMapping("/{documentId}/content")
+    ResponseEntity<byte[]> content(@PathVariable UUID documentId) {
+        var content = documents.getContent(documentId);
+        byte[] bytes = content.bytes();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(content.mediaType().value()))
+                .contentLength(bytes.length)
+                .cacheControl(CacheControl.noStore())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline()
+                                .filename(content.originalFilename(), java.nio.charset.StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .body(bytes);
     }
 
     @GetMapping
