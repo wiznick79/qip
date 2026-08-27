@@ -114,7 +114,13 @@ class KnowledgeDocumentIndexerTests {
         }
 
         @Override
-        public List<RetrievedPassage> search(Embedding query, String embeddingModel, Set<UUID> documentIds, int limit) {
+        public List<RetrievedPassage> searchSemantic(
+                Embedding query, String embeddingModel, Set<UUID> documentIds, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public List<RetrievedPassage> searchLexical(String query, Set<UUID> documentIds, int limit) {
             return List.of();
         }
     }

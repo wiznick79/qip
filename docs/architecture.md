@@ -106,7 +106,7 @@ Use a package-by-module modular monolith, enforced with Spring Modulith verifica
 | --- | --- | --- |
 | `assets` | Asset lifecycle and lookup | No business module |
 | `incidents` | Incidents, observations, evidence, incident search | `assets` public API |
-| `knowledge` | Documents, extraction, chunking, embeddings, vector retrieval | No business module; infrastructure adapters for storage, extraction, embedding, and vector search |
+| `knowledge` | Documents, extraction, chunking, embeddings, hybrid retrieval | No business module; infrastructure adapters for storage, extraction, embedding, and PostgreSQL search |
 | `investigations` | Investigation workflow, questions, answer assembly, citations, grounding policy | `incidents` and `knowledge` public APIs |
 | `bootstrap` | Spring application, configuration composition, cross-cutting web/error/security setup | All modules for assembly only |
 
@@ -214,7 +214,9 @@ This may initially run after the upload request using an in-process task executo
 
 The milestone 7 implementation performs extraction and indexing synchronously after upload while preserving persisted state transitions: `UPLOADED` → `EXTRACTING` → `EXTRACTED` → `INDEXING` → `INDEXED`, with `EXTRACTION_FAILED` and `INDEXING_FAILED` as retryable failure states. Repository operations use short transactions; local storage reads, PDF processing, and embedding calls occur between them. Retry endpoints resume failed extraction or indexing, and re-uploading duplicate content resumes incomplete ingestion.
 
-Passages never cross page boundaries. Text is whitespace-normalized and split into at most 800 characters with 120 characters of word-aligned overlap. Page number, document-wide sequence, text digest, embedding model, vector dimensions, and indexing time are retained. All embeddings are produced and validated before a single transaction replaces that document's passages, preventing partial batches or stale vectors from becoming searchable. Retrieval uses bounded exact cosine search over `INDEXED` documents with matching model and dimensions; optional document filters constrain the candidate set. ADR 0004 records why approximate indexes and a fixed vector dimension are deferred.
+Passages never cross page boundaries. Text is whitespace-normalized and split into at most 800 characters with 120 characters of word-aligned overlap. Page number, document-wide sequence, text digest, embedding model, vector dimensions, indexing time, and a generated English full-text vector are retained. All embeddings are produced and validated before a single transaction replaces that document's passages, preventing partial batches or stale vectors from becoming searchable.
+
+Milestone 18 retrieval obtains bounded exact-cosine and PostgreSQL full-text candidate rankings over `INDEXED` documents, with matching model and dimensions enforced on the semantic branch. The same optional document filter constrains both branches. Reciprocal rank fusion with rank constant 60 produces deterministic ordering without comparing incompatible raw score scales; the passage UUID breaks ties. Each branch receives three times the requested result count, capped at 60, and the normalized fusion score remains subject to the investigation relevance threshold. ADR 0004 records why approximate vector indexes remain deferred; ADR 0015 records hybrid ranking.
 
 File identity is the SHA-256 checksum of its bytes. Re-uploading identical content returns the original document, including its original title, rather than creating another metadata record or stored file. The original filename is untrusted display metadata: path components are removed and the local storage key is generated from the opaque document ID. Storage defaults outside the web root and is configurable for deployment.
 
@@ -223,8 +225,8 @@ Only PDF and strict UTF-8 plain text are accepted. Direct PDFBox extraction reta
 ### Grounded answering flow
 
 1. Validate the investigation and permitted document scope.
-2. Convert the question into an embedding.
-3. Perform similarity search over eligible passages, applying document filters before or alongside ranking.
+2. Convert the bounded retrieval text into an embedding and normalized full-text lexemes.
+3. Rank eligible passages semantically and lexically, apply the same document filters, and fuse the bounded rankings.
 4. Build a bounded prompt containing instructions, the question, and numbered passages with provenance.
 5. Ask the chat model to answer only from supplied passages and to report insufficient evidence when appropriate.
 6. Resolve cited passage markers to application-owned `Citation` objects. Reject or downgrade malformed/unknown citations.
@@ -254,7 +256,7 @@ Local configuration supplies synthetic `INVESTIGATOR`, `REVIEWER`, and `ADMIN` u
 
 ### Repeatable RAG evaluation
 
-Milestone 15 promotes the synthetic retrieval baseline into a versioned end-to-end quality gate. Fixture `v1` exercises document upload and indexing, deterministic retrieval, bounded prompt construction, answer-status classification, citation allow-listing, persistence, and the public question API. The default build requires every measured retrieval hit, grounded citation, expected status, context bound, and adversarial boundary to pass, then writes a Markdown report under `target/rag-evaluation/`.
+Milestone 15 promotes the synthetic retrieval baseline into a versioned end-to-end quality gate. Fixture `v1` established the original seven-case baseline. Milestone 18 fixture `v3` preserves those cases and adds exact diagnostic-code retrieval for the hybrid ranker. The gate exercises document upload and indexing, deterministic retrieval, bounded prompt construction, answer-status classification, citation allow-listing, persistence, and the public question API. The default build requires every measured retrieval hit, grounded citation, expected status, context bound, and adversarial boundary to pass, then writes a Markdown report under `target/rag-evaluation/`.
 
 An opt-in `v2` local-model comparison complements that deterministic gate without changing release behavior. It runs installed Ollama candidates through the real QIP answer adapter with identical bounded context and retrieved evidence, records objective protocol and provenance gates, and creates a blinded human scorecard for semantic quality. Model identities are kept in a separate reveal file to reduce reviewer bias; generated answers and reports remain ignored local artifacts because model output is not a repository fixture or human-confirmed evidence.
 
@@ -268,7 +270,7 @@ Adversarial cases inject document instructions, a generated unsupported claim, a
 
 ### AI concepts used in the MVP
 
-- **Embedding:** a numeric representation of text in which semantically similar passages tend to be near one another. It solves vocabulary mismatch better than exact keyword search. It does not understand truth and is not an answer by itself. An initial alternative is PostgreSQL full-text search; hybrid keyword/vector retrieval can be evaluated later.
+- **Embedding:** a numeric representation of text in which semantically similar passages tend to be near one another. It solves vocabulary mismatch better than exact keyword search. It does not understand truth and is not an answer by itself. QIP combines this signal with PostgreSQL full-text ranking using deterministic reciprocal rank fusion.
 - **Vector store:** storage plus an index for comparing embeddings. pgvector keeps this capability beside existing PostgreSQL data, avoiding another service in the MVP. A dedicated vector database is justified only by measured scale or operational needs.
 - **Semantic search:** retrieving by meaning similarity using embeddings. It finds candidate evidence, but similarity is not proof of relevance.
 - **RAG (retrieval-augmented generation):** retrieve passages first, then give only those passages to the model as context for an answer. It improves grounding and allows citations, but does not eliminate hallucinations.
@@ -382,6 +384,7 @@ GET    /api/incidents/{incidentId}/evidence
 
 POST   /api/documents                 multipart upload
 GET    /api/documents/{documentId}
+GET    /api/documents/{documentId}/content
 GET    /api/documents/{documentId}/status
 POST   /api/documents/{documentId}/extraction
 POST   /api/documents/{documentId}/indexing
@@ -396,6 +399,8 @@ POST   /api/investigations/{investigationId}/closure
 ```
 
 The question response includes answer status, answer text, citations, and model/retrieval metadata suitable for debugging without exposing secrets or hidden prompts.
+
+Source inspection remains inside the knowledge-module boundary. The authenticated content endpoint resolves only the generated storage key owned by a known document, returns the original bytes inline with the recorded media type and `no-store` caching, and never returns a filesystem path or storage key. The web client links validated citations to that endpoint and adds the cited PDF page as a browser URL fragment, so page navigation does not expand the backend's authorization or storage surface.
 
 ## 9. Quality, security, and operational baseline
 

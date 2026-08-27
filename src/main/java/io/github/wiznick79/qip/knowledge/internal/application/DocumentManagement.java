@@ -104,6 +104,13 @@ public class DocumentManagement {
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
     }
 
+    public DocumentContent getContent(UUID documentId) {
+        SourceDocument document =
+                repository.findById(documentId).orElseThrow(() -> new DocumentNotFoundException(documentId));
+        return new DocumentContent(
+                document.originalFilename(), document.mediaType(), storage.read(document.storageKey()));
+    }
+
     public DocumentPage listDocuments(int page, int size) {
         return repository.findAll(page, size);
     }

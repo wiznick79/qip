@@ -18,7 +18,7 @@ const asset = {
   createdAt: "2026-08-20T08:00:00Z",
 };
 const document = {
-  id: "document-1", title: "Synthetic pump manual", originalFilename: "pump.txt", mediaType: "text/plain",
+  id: "document-1", title: "Synthetic pump manual", originalFilename: "pump.pdf", mediaType: "application/pdf",
   sizeBytes: 120, checksumSha256: "a".repeat(64), status: "INDEXED", failureReason: null,
   extractedPageCount: 1, uploadedAt: "2026-08-20T10:00:00Z", updatedAt: "2026-08-20T10:00:01Z",
 };
@@ -105,6 +105,11 @@ describe("Investigation workspace", () => {
     expect(screen.getByText("GROUNDED")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Synthetic pump manual · page 1/));
     expect(screen.getByText("Passage 1 · relevance 0.880")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open cited page/ })).toHaveAttribute(
+      "href",
+      "/api/documents/document-1/content#page=1",
+    );
+    expect(screen.getByRole("link", { name: /Open cited page/ })).toHaveAttribute("target", "_blank");
     await waitFor(() => expect(screen.getByLabelText("Question")).toHaveValue(""));
   });
 

@@ -33,6 +33,10 @@ export function InvestigationsPage({
   const [error, setError] = useState<string | null>(null);
   const attemptedRouteIncident = useRef<string | null>(null);
   const indexedDocuments = useMemo(() => documents.filter((document) => document.status === "INDEXED"), [documents]);
+  const documentMediaTypes = useMemo(
+    () => new Map(documents.map((document) => [document.id, document.mediaType])),
+    [documents],
+  );
   const selectedIncident = incidents.find((incident) => incident.id === selectedIncidentId);
   const roles = session?.roles ?? ["ADMIN", "INVESTIGATOR", "REVIEWER"];
   const canReview = roles.includes("REVIEWER") || roles.includes("ADMIN");
@@ -201,6 +205,7 @@ export function InvestigationsPage({
                 canPropose={investigation.status === "OPEN"}
                 drafting={draftQuestionId === item.id}
                 busy={findingAction === item.id}
+                documentMediaTypes={documentMediaTypes}
                 onToggleDraft={() => setDraftQuestionId((current) => current === item.id ? null : item.id)}
                 onPropose={(event) => proposeFinding(event, item.id)}
               />)}
@@ -277,6 +282,7 @@ function AnswerCard({
   canPropose,
   drafting,
   busy,
+  documentMediaTypes,
   onToggleDraft,
   onPropose,
 }: {
@@ -285,6 +291,7 @@ function AnswerCard({
   canPropose: boolean;
   drafting: boolean;
   busy: boolean;
+  documentMediaTypes: ReadonlyMap<string, SourceDocument["mediaType"]>;
   onToggleDraft: () => void;
   onPropose: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -295,7 +302,18 @@ function AnswerCard({
     <p className="question-text">{item.question}</p>
     <span className={`answer-status answer-status-${item.status.toLowerCase().replaceAll("_", "-")}`}>{item.status.replaceAll("_", " ")}</span>
     {item.answer ? <p className="answer-text">{item.answer}</p> : <p className="answer-failure">{item.failureReason}</p>}
-    {item.citations.length > 0 ? <div className="citations"><strong>Sources</strong>{item.citations.map((citation) => <details key={citation.passageId}><summary>{citation.documentTitle} · page {citation.pageNumber}</summary><p>{citation.excerpt}</p><small>Passage {citation.passageSequence + 1} · relevance {citation.relevanceScore.toFixed(3)}</small></details>)}</div> : null}
+    {item.citations.length > 0 ? <div className="citations"><strong>Sources</strong>{item.citations.map((citation) => {
+      const isPdf = documentMediaTypes.get(citation.documentId) === "application/pdf";
+      const sourceUrl = `/api/documents/${encodeURIComponent(citation.documentId)}/content${isPdf ? `#page=${citation.pageNumber}` : ""}`;
+      return <details key={citation.passageId}>
+        <summary>{citation.documentTitle} · page {citation.pageNumber}</summary>
+        <p>{citation.excerpt}</p>
+        <div className="citation-actions">
+          <small>Passage {citation.passageSequence + 1} · relevance {citation.relevanceScore.toFixed(3)}</small>
+          <a href={sourceUrl} target="_blank" rel="noreferrer">{isPdf ? "Open cited page" : "Open source document"} →</a>
+        </div>
+      </details>;
+    })}</div> : null}
     {canPropose && item.status === "GROUNDED" && !findingExists ? <button className="quiet-button finding-toggle" onClick={onToggleDraft}>{drafting ? "Cancel draft" : "Propose as finding"}</button> : null}
     {findingExists ? <p className="finding-linked">A reviewable finding has been created from this answer.</p> : null}
     {drafting ? <form className="finding-draft-form" onSubmit={onPropose}>

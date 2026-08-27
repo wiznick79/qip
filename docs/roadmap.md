@@ -69,3 +69,5 @@ Improve evidence discovery and let users inspect an answer's source in context w
 - Reuse the blinded Ollama comparison for future local-model changes rather than treating model size or generic benchmarks as sufficient evidence.
 
 OCR, a dedicated search service or vector database, autonomous investigation actions, and unrestricted document browsing remain outside this milestone.
+
+Hybrid retrieval is implemented behind the knowledge API with bounded PostgreSQL full-text and exact pgvector candidate lists, deterministic reciprocal-rank fusion, identical document filters, Flyway-managed GIN indexing, and the versioned `v3` offline quality gate. Authenticated citations now open source content through the knowledge API, with PDF links targeting the cited page through native browser navigation while storage keys and paths remain private. These two slices complete Milestone 18.

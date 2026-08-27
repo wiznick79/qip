@@ -56,7 +56,8 @@ class JdbcPassageRepositoryAdapter implements PassageRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RetrievedPassage> search(Embedding query, String embeddingModel, Set<UUID> documentIds, int limit) {
+    public List<RetrievedPassage> searchSemantic(
+            Embedding query, String embeddingModel, Set<UUID> documentIds, int limit) {
         String documentFilter = documentIds.isEmpty() ? "" : "AND p.document_id IN (:documentIds)";
         String sql = """
                 SELECT p.id, p.document_id, d.title, p.page_number, p.sequence_number, p.text,
@@ -75,6 +76,45 @@ class JdbcPassageRepositoryAdapter implements PassageRepository {
                 .param("embeddingModel", embeddingModel)
                 .param("dimensions", query.values().size())
                 .param("limit", limit);
+        if (!documentIds.isEmpty()) {
+            statement = statement.param("documentIds", documentIds);
+        }
+        return statement
+                .query((result, rowNumber) -> new RetrievedPassage(
+                        result.getObject("id", UUID.class),
+                        result.getObject("document_id", UUID.class),
+                        result.getString("title"),
+                        result.getInt("page_number"),
+                        result.getInt("sequence_number"),
+                        result.getString("text"),
+                        result.getDouble("score")))
+                .list();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RetrievedPassage> searchLexical(String query, Set<UUID> documentIds, int limit) {
+        String documentFilter = documentIds.isEmpty() ? "" : "AND p.document_id IN (:documentIds)";
+        String sql = """
+                WITH lexical_query AS (
+                    SELECT to_tsquery(
+                        'english',
+                        string_agg(quote_literal(lexeme), ' | ' ORDER BY lexeme)
+                    ) AS value
+                    FROM unnest(tsvector_to_array(to_tsvector('english', :query))) AS lexeme
+                )
+                SELECT p.id, p.document_id, d.title, p.page_number, p.sequence_number, p.text,
+                       ts_rank_cd(p.search_vector, lexical_query.value) AS score
+                FROM knowledge_passages p
+                JOIN source_documents d ON d.id = p.document_id
+                CROSS JOIN lexical_query
+                WHERE d.ingestion_status = 'INDEXED'
+                  AND p.search_vector @@ lexical_query.value
+                %s
+                ORDER BY score DESC, p.id
+                LIMIT :limit
+                """.formatted(documentFilter);
+        JdbcClient.StatementSpec statement = jdbc.sql(sql).param("query", query).param("limit", limit);
         if (!documentIds.isEmpty()) {
             statement = statement.param("documentIds", documentIds);
         }
