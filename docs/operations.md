@@ -27,7 +27,7 @@ To inspect the raw measurements from PowerShell, authenticate with the configure
 
 ```powershell
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$csrf = Invoke-RestMethod http://localhost:8080/api/session -WebSession $session
+$csrf = Invoke-RestMethod http://localhost:28080/api/session -WebSession $session
 $headers = @{ $csrf.csrfHeaderName = $csrf.csrfToken }
 $username = if ($env:QIP_ADMIN_USERNAME) { $env:QIP_ADMIN_USERNAME } else { "qip-admin" }
 $password = if ($env:QIP_ADMIN_PASSWORD) { $env:QIP_ADMIN_PASSWORD } else { "qip-admin-local-only" }
@@ -35,10 +35,10 @@ $credentials = @{
   username = $username
   password = $password
 }
-Invoke-WebRequest http://localhost:8080/api/session/login `
+Invoke-WebRequest http://localhost:28080/api/session/login `
   -Method Post -WebSession $session -Headers $headers -Body $credentials
-Invoke-RestMethod http://localhost:8080/actuator/metrics -WebSession $session
-Invoke-RestMethod http://localhost:8080/actuator/metrics/qip.knowledge.ingestion -WebSession $session
+Invoke-RestMethod http://localhost:28080/actuator/metrics -WebSession $session
+Invoke-RestMethod http://localhost:28080/actuator/metrics/qip.knowledge.ingestion -WebSession $session
 ```
 
 ## Service-level indicators
