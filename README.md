@@ -33,7 +33,7 @@ docker compose up --build -d --wait
 .\scripts\run-synthetic-investigation.ps1 -ReindexDocuments
 ```
 
-Open `http://localhost:8080/` and sign in as `qip-admin` / `qip-admin-local-only` to inspect the incident record, evidence timeline, grounded answer, cited manual passage, reviewed finding, and closure state. All machines, incidents, measurements, manuals, and default credentials are visibly synthetic.
+Open `http://localhost:28080/` and sign in as `qip-admin` / `qip-admin-local-only` to inspect the incident record, evidence timeline, grounded answer, cited manual passage, reviewed finding, and closure state. All machines, incidents, measurements, manuals, and default credentials are visibly synthetic.
 
 ### Deliberate boundaries
 
@@ -96,7 +96,7 @@ QIP's production React bundle is packaged inside the Spring Boot application ima
 docker compose up --build -d --wait
 ```
 
-Open `http://localhost:8080/`. Subsequent starts can omit `--build`:
+Open `http://localhost:28080/`. Subsequent starts can omit `--build`:
 
 ```powershell
 docker compose up -d --wait
@@ -119,7 +119,7 @@ docker compose logs -f qip
 docker compose down
 ```
 
-The named database and document volumes survive `docker compose down`. Use `docker compose down --volumes` only when you intentionally want to delete local QIP data. Copy `.env.example` to `.env` to override the HTTP port, model tags, timeouts, or local-only database values. The default application container connects to host Ollama through `host.docker.internal`.
+The named database and document volumes survive `docker compose down`. Use `docker compose down --volumes` only when you intentionally want to delete local QIP data. QIP defaults to host ports `28080` for the application and `25432` for PostgreSQL; the container-internal ports remain `8080` and `5432`. Copy `.env.example` to `.env` to override the host ports, model tags, timeouts, or local-only database values. The default application container connects to host Ollama through `host.docker.internal`.
 
 To run entirely without Ollama, set `QIP_SPRING_PROFILES=local` in `.env`; QIP will use its deterministic offline adapters.
 
@@ -259,7 +259,7 @@ $env:QIP_LIVE_MODEL_TEST = "true"
 
 ## Web client
 
-The React and TypeScript client lives under `frontend/`. Start Spring Boot on port 8080, then run:
+The React and TypeScript client lives under `frontend/`. Start Spring Boot with the `local` profile on port 28080, then run:
 
 ```shell
 cd frontend
@@ -267,7 +267,7 @@ npm ci
 npm run dev
 ```
 
-Vite serves the development UI at `http://localhost:5173` and proxies `/api` to Spring Boot. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
+Vite serves the development UI at `http://localhost:25173` and proxies `/api` to Spring Boot on `http://localhost:28080`. Run `npm run verify` for type-checking, behavior tests, and the production build. Maven packages an existing `frontend/dist` into the application JAR, and CI always builds the frontend before Maven verification.
 
 The web client opens on a compact dashboard with workflow totals, recent incidents, and direct actions. It also covers asset registration, paginated incident reporting and lifecycle actions, a bookmarkable incident record with append-only observation and human-evidence timelines, document upload/status, and a structured investigation workspace. The Investigate screen scopes questions to an incident, optionally filters indexed documents, distinguishes grounded and insufficient answers, exposes citation passages, and provides explicit finding proposal and review controls. Successfully closing an investigation automatically resolves its incident; moving that resolved incident to `CLOSED` remains an optional later archival action. Incident observations and evidence are not silently added to model context. It is not a site-wide unconstrained chat box.
 
@@ -276,18 +276,18 @@ The v0.1.0 release established the complete local MVP, reproducible container pa
 API and operational endpoints are available while QIP is running:
 
 ```text
-Swagger UI  http://localhost:8080/swagger-ui.html
-OpenAPI     http://localhost:8080/v3/api-docs
-Health      http://localhost:8080/actuator/health
-Liveness    http://localhost:8080/actuator/health/liveness
-Readiness   http://localhost:8080/actuator/health/readiness
+Swagger UI  http://localhost:28080/swagger-ui.html
+OpenAPI     http://localhost:28080/v3/api-docs
+Health      http://localhost:28080/actuator/health
+Liveness    http://localhost:28080/actuator/health/liveness
+Readiness   http://localhost:28080/actuator/health/readiness
 ```
 
 Health and metrics are the only exposed Actuator capabilities. Health component details remain hidden, and metrics require the administrator role. Administrators can use the in-application **Operations** page for current-process counts, failure rates, latency, and answer outcomes instead of reading raw JSON. Every response carries `X-Correlation-ID`; console logs are structured without request bodies, document text, prompts, model responses, or secrets. See [local operations and troubleshooting](docs/operations.md) for metric names, service-level indicators, and the bounded diagnostic workflow. Maven verification also generates Spring Modulith PlantUML diagrams and module canvases under `target/spring-modulith-docs/`.
 
 ## Synthetic demo data
 
-The repository includes three fictional machines and matching three-page PDF manuals for local testing. With QIP running on port 8080, load them through the authenticated API using Windows PowerShell 5 or newer:
+The repository includes three fictional machines and matching three-page PDF manuals for local testing. With QIP running on port 28080, load them through the authenticated API using Windows PowerShell 5 or newer:
 
 ```powershell
 .\scripts\load-synthetic-demo.ps1

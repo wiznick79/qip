@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = "http://localhost:8080",
+    [string]$BaseUrl = "http://localhost:28080",
     [switch]$ReindexDocuments,
     [string]$Username,
     [string]$Password

@@ -26,12 +26,12 @@ After the first Ollama re-index, omit `-ReindexDocuments` on later runs.
 
 ## 3. Inspect the system
 
-- Web client: `http://localhost:8080/`
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Health: `http://localhost:8080/actuator/health`
-- Liveness: `http://localhost:8080/actuator/health/liveness`
-- Readiness: `http://localhost:8080/actuator/health/readiness`
+- Web client: `http://localhost:28080/`
+- Swagger UI: `http://localhost:28080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:28080/v3/api-docs`
+- Health: `http://localhost:28080/actuator/health`
+- Liveness: `http://localhost:28080/actuator/health/liveness`
+- Readiness: `http://localhost:28080/actuator/health/readiness`
 
 The generated Spring Modulith diagrams and canvases are written to `target/spring-modulith-docs/` during the Maven test suite.
 

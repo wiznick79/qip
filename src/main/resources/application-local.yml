@@ -1,8 +1,11 @@
+server:
+  port: ${QIP_HTTP_PORT:28080}
+
 spring:
   config:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:postgresql://${QIP_DB_HOST:localhost}:${QIP_DB_PORT:5432}/${QIP_DB_NAME:qip}
+    url: jdbc:postgresql://${QIP_DB_HOST:localhost}:${QIP_DB_PORT:25432}/${QIP_DB_NAME:qip}
     username: ${QIP_DB_USERNAME:qip}
     password: ${QIP_DB_PASSWORD:qip-local-only}
