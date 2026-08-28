@@ -4,6 +4,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -75,6 +77,10 @@ class InvestigationApiIntegrationTests {
                 .getResponse()
                 .getContentAsString();
         String investigationId = JsonPath.read(investigationResponse, "$.id");
+
+        mockMvc.perform(get("/api/investigations/{investigationId}/report", investigationId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Only closed investigations can be exported"));
 
         String questionResponse = mockMvc.perform(
                         post("/api/investigations/{investigationId}/questions", investigationId)
@@ -185,6 +191,17 @@ class InvestigationApiIntegrationTests {
         mockMvc.perform(get("/api/incidents/{incidentId}", incidentId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RESOLVED"));
+
+        byte[] report = mockMvc.perform(get("/api/investigations/{investigationId}/report", investigationId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(header().string(
+                                "Content-Disposition", org.hamcrest.Matchers.containsString("qip-investigation-")))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+        org.assertj.core.api.Assertions.assertThat(report).startsWith('%', 'P', 'D', 'F');
 
         mockMvc.perform(post("/api/investigations/{investigationId}/questions", investigationId)
                         .contentType(MediaType.APPLICATION_JSON)
