@@ -213,13 +213,14 @@ POST /api/investigations/{investigationId}/questions
 POST /api/investigations/{investigationId}/findings
 POST /api/investigations/{investigationId}/findings/{findingId}/reviews
 POST /api/investigations/{investigationId}/closure
+GET  /api/investigations/{investigationId}/report    closed-case PDF export
 ```
 
 Creating an investigation is idempotent per incident. Questions may optionally select document IDs and return `GROUNDED`, `INSUFFICIENT_EVIDENCE`, or `TECHNICAL_FAILURE`. Grounded responses include validated citation snapshots with document, page, passage, excerpt, and relevance metadata. In the investigation workspace, each citation opens its authenticated source; PDF citations use the browser's native `#page=` navigation to jump to the cited page. The default answer adapter is deterministic and offline. The opt-in `ollama` profile supplies local `EmbeddingModel` and `ChatModel` beans without API keys.
 
 A grounded answer with validated citations can be explicitly proposed as a `DRAFT` finding. A separate review action records `CONFIRMED` or `REJECTED`, the authenticated reviewer, a mandatory rationale, and an append-only audit event. Insufficient or failed answers cannot become findings, and reviewed findings cannot be overwritten. Human attribution is derived from the authenticated session rather than trusted from request bodies; review requires `REVIEWER` or `ADMIN` and closure requires `INVESTIGATOR` or `ADMIN`.
 
-An investigation can be closed only after every draft is resolved and at least one finding is confirmed. Closure records an immutable human-authored summary, closer reference, and application timestamp. A closed investigation rejects new questions, finding actions, and repeated closure.
+An investigation can be closed only after every draft is resolved and at least one finding is confirmed. Closure records an immutable human-authored summary, closer reference, and application timestamp. A closed investigation rejects new questions, finding actions, and repeated closure. Authenticated users can generate a non-cached PDF report for a closed case; it includes incident context, observations, evidence, grounded answers and citations, attributed finding review history, and closure details without storing a duplicate report file.
 
 ## Local Ollama models
 

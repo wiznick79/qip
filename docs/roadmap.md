@@ -1,4 +1,4 @@
-# QIP roadmap through v0.2.0
+# QIP roadmap
 
 The first portfolio release proves the complete local investigation workflow. The next milestones harden that workflow without changing QIP's modular-monolith boundary or turning decision support into autonomous root-cause judgment.
 
@@ -71,3 +71,14 @@ Improve evidence discovery and let users inspect an answer's source in context w
 OCR, a dedicated search service or vector database, autonomous investigation actions, and unrestricted document browsing remain outside this milestone.
 
 Hybrid retrieval is implemented behind the knowledge API with bounded PostgreSQL full-text and exact pgvector candidate lists, deterministic reciprocal-rank fusion, identical document filters, Flyway-managed GIN indexing, and the versioned `v3` offline quality gate. Authenticated citations now open source content through the knowledge API, with PDF links targeting the cited page through native browser navigation while storage keys and paths remain private. These two slices complete Milestone 18.
+
+## Milestone 19 - closed-investigation PDF reports
+
+Turn a completed investigation into a portable, attributable case record without creating another mutable source of truth.
+
+- Export only closed investigations through an authenticated application endpoint.
+- Include asset and incident context, observations, evidence, grounded questions and citations, reviewed findings and audit events, and immutable closure details.
+- Generate the PDF on demand with deterministic layout, safe wrapping and pagination, stable filenames, page numbers, and non-cached delivery.
+- Add the export action to the closed investigation workspace and verify both document content and rendered layout with synthetic data.
+
+Digital signatures, email delivery, stored report versions, arbitrary templates, and exports from open investigations remain outside this milestone.

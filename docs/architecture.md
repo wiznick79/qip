@@ -396,11 +396,14 @@ GET    /api/investigations/{investigationId}
 POST   /api/investigations/{investigationId}/findings
 POST   /api/investigations/{investigationId}/findings/{findingId}/reviews
 POST   /api/investigations/{investigationId}/closure
+GET    /api/investigations/{investigationId}/report
 ```
 
 The question response includes answer status, answer text, citations, and model/retrieval metadata suitable for debugging without exposing secrets or hidden prompts.
 
 Source inspection remains inside the knowledge-module boundary. The authenticated content endpoint resolves only the generated storage key owned by a known document, returns the original bytes inline with the recorded media type and `no-store` caching, and never returns a filesystem path or storage key. The web client links validated citations to that endpoint and adds the cited PDF page as a browser URL fragment, so page navigation does not expand the backend's authorization or storage surface.
+
+Milestone 19 report generation remains an application-owned read workflow. The incidents module exposes immutable case snapshots through its named API; the investigations module combines those with asset and investigation snapshots, requires terminal closure, and renders a deterministic PDF outside any database transaction. Reports are generated on demand, returned as authenticated `no-store` downloads, and are not persisted as a second source of truth.
 
 ## 9. Quality, security, and operational baseline
 

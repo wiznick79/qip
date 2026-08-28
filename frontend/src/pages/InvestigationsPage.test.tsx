@@ -174,6 +174,10 @@ describe("Investigation workspace", () => {
 
     expect(await screen.findByText("Case closure")).toBeInTheDocument();
     expect(screen.getByText("The confirmed finding closes this case.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download report (PDF)" })).toHaveAttribute(
+      "href",
+      "/api/investigations/investigation-1/report",
+    );
     expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
     expect(await screen.findByText(/Incident status:/)).toHaveTextContent("RESOLVED");
     expect(statusUpdateCalls()).toHaveLength(0);

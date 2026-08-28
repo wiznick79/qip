@@ -357,7 +357,7 @@ function FindingsPanel({
         <button className="primary-button" disabled={busyAction === finding.id}>{busyAction === finding.id ? "Recording review…" : "Record review decision"}</button>
       </form> : finding.status === "DRAFT" ? <p className="role-boundary">You do not have permission to review this finding.</p> : null}
     </article>)}
-    {investigation.status === "CLOSED" ? <><div className="closure-outcome"><span>CLOSED</span><h3>Case closure</h3><p>{investigation.closureSummary}</p><small>Closed by {investigation.closedBy} · {formatDate(investigation.closedAt!)}</small></div>{incident ? <p className="incident-lifecycle-state">Incident status: <strong>{incident.status}</strong></p> : null}</>
+    {investigation.status === "CLOSED" ? <><div className="closure-outcome"><span>CLOSED</span><h3>Case closure</h3><p>{investigation.closureSummary}</p><small>Closed by {investigation.closedBy} · {formatDate(investigation.closedAt!)}</small><a className="quiet-button report-download" href={`/api/investigations/${encodeURIComponent(investigation.id)}/report`}>Download report (PDF)</a></div>{incident ? <p className="incident-lifecycle-state">Incident status: <strong>{incident.status}</strong></p> : null}</>
       : hasConfirmedFinding && !hasDraftFinding && canClose ? <form className="closure-form" onSubmit={onClose}>
         <div><h3>Close investigation</h3><p>Closure is terminal. Summarize the human-reviewed conclusion without overstating the evidence.</p></div>
         <label>Closure summary<textarea name="summary" required maxLength={4000} rows={3} placeholder="Summarize the confirmed findings, uncertainty, and any follow-up." /></label>
