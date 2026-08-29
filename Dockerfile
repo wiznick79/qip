@@ -2,7 +2,7 @@
 
 ARG QIP_VERSION=0.2.0-SNAPSHOT
 
-FROM node:24.19.0-alpine AS frontend-build
+FROM node:24.20.0-alpine AS frontend-build
 WORKDIR /workspace/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
