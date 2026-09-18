@@ -9,6 +9,9 @@ The project is intentionally starting as a modular Java application. Kafka, micr
 
 ## Portfolio snapshot
 
+The [permanent project microsite](https://wiznick79.github.io/qip/) presents QIP's workflow and architecture independently
+of the live application. See [preview and GitHub Pages publishing instructions](docs/project-site.md).
+
 QIP demonstrates a production-minded AI workflow without pretending that generated text is an autonomous root-cause decision. A reviewer can run the complete application without paid credentials, inspect every supporting passage, and follow the provenance change from model-generated answer to separately reviewed human finding.
 
 ![QIP grounded investigation workspace using a synthetic hydraulic-press case](docs/images/qip-investigation-workspace.png)
