@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.1</version>
+    <version>4.1.2</version>
     <relativePath/>
   </parent>
 
@@ -43,13 +43,13 @@
   <properties>
     <revision>0.2.0-SNAPSHOT</revision>
     <java.version>21</java.version>
-    <spring-modulith.version>2.1.1</spring-modulith.version>
-    <spring-ai.version>2.0.1</spring-ai.version>
-    <springdoc-openapi.version>3.1.1</springdoc-openapi.version>
+    <spring-modulith.version>2.1.2</spring-modulith.version>
+    <spring-ai.version>2.0.2</spring-ai.version>
+    <springdoc-openapi.version>3.2.0</springdoc-openapi.version>
     <pdfbox.version>3.0.8</pdfbox.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-    <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-    <spotless-maven-plugin.version>3.10.3</spotless-maven-plugin.version>
+    <maven-enforcer-plugin.version>3.7.0</maven-enforcer-plugin.version>
+    <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
